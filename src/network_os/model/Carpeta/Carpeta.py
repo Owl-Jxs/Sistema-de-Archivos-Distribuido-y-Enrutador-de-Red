@@ -150,30 +150,7 @@ class Carpeta:
         return carpeta_actual
 
 
-    def eliminar_subcarpeta(self, id: int) -> None:
-        """Elimina una subcarpeta a partir de su ID."""
-        self.__validar_id(id)
-        subcarpeta_actual = self.__primer_subcarpeta
-        subcarpeta_anterior: Carpeta | None = None
-
-        while subcarpeta_actual is not None:
-            if subcarpeta_actual.id == id:
-                break
-            subcarpeta_anterior = subcarpeta_actual
-            subcarpeta_actual = subcarpeta_actual.__siguiente_subcarpeta
-
-        if subcarpeta_actual is None:
-            raise ValueError(f"Subcarpeta con ID {id} no encontrada.")
-
-        # Caso A: El nodo a eliminar es el primero de la lista
-        if subcarpeta_anterior is None:
-            self.__primer_subcarpeta = subcarpeta_actual.__siguiente_subcarpeta
-        # Caso B: El nodo está en el medio o final
-        else:
-            subcarpeta_anterior.__siguiente_subcarpeta = (
-                subcarpeta_actual.__siguiente_subcarpeta
-            )
-
-        # Liberar punteros internos recursivamente
-        subcarpeta_actual.__vaciado_recursivo()
+    def eliminar_subcarpeta_irreversible (self) -> None:
+        """Elimina la carpeta de forma irreversible eliminando la memoria RAM."""
+        self.__vaciado_recursivo()
 
