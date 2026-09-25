@@ -5,19 +5,21 @@ from __future__ import annotations
 class Carpeta:
     """Clase que representa una carpeta en el sistema."""
 
+    separador_direccion = '/'
+
     def __init__(
-            self,
-            id: int,
-            nombre_carpeta: str,
-            direccion_carpeta: str,
-            _carpeta_padre: Carpeta | None = None,
-            _lista_archivos: list[int] | None = None,
-            _primer_subcarpeta: Carpeta | None = None,
-            _siguiente_subcarpeta: Carpeta | None = None,
+        self,
+        id: int,
+        nombre_carpeta: str,
+        direccion_carpeta: str,
+        carpeta_padre: Carpeta | None = None,
+        lista_archivos: list[int] | None = None,
+        primer_subcarpeta: Carpeta | None = None,
+        siguiente_subcarpeta: Carpeta | None = None,
     ) -> None:
         """Constructor de la clase Carpeta."""
 
-        # Validamos los parámetros recibidos antes de asignarlos
+        # Validaciones de entrada
         self.__validar_id(id)
         self.__validar_str(nombre_carpeta)
         self.__validar_str(direccion_carpeta)
@@ -25,12 +27,14 @@ class Carpeta:
         self.id: int = id
         self.nombre_carpeta: str = nombre_carpeta.strip()
         self.direccion_carpeta: str = direccion_carpeta.strip()
-        self._carpeta_padre: Carpeta | None = _carpeta_padre
-        self._lista_archivos: list[int] = (
-            _lista_archivos if _lista_archivos is not None else []
+
+        # Atributos privados
+        self.__carpeta_padre: Carpeta | None = carpeta_padre
+        self.__lista_archivos: list[int] = (
+            lista_archivos if lista_archivos is not None else []
         )
-        self._primer_subcarpeta: Carpeta | None = _primer_subcarpeta
-        self._siguiente_subcarpeta: Carpeta | None = _siguiente_subcarpeta
+        self.__primer_subcarpeta: Carpeta | None = primer_subcarpeta
+        self.__siguiente_subcarpeta: Carpeta | None = siguiente_subcarpeta
 
     # --- Métodos Privados de Validación ---
 
@@ -46,48 +50,130 @@ class Carpeta:
         if id is None or id < 0:
             raise ValueError("El ID no puede ser nulo ni negativo.")
 
-    # --- Métodos Privados de Busqueda ---
+    def __vaciado_recursivo(self) -> None:
+        """Método auxiliar para borrar recursivamente el árbol de una carpeta."""
+        subcarpeta_actual = self.__primer_subcarpeta
 
+        while subcarpeta_actual is not None:
+            siguiente = subcarpeta_actual.__siguiente_subcarpeta
+            subcarpeta_actual.__vaciado_recursivo()
+            subcarpeta_actual.__carpeta_padre = None
+            subcarpeta_actual.__siguiente_subcarpeta = None
+            subcarpeta_actual = siguiente
 
-    # --- Métodos Públicos ---
+        self.__carpeta_padre = None
+        self.__primer_subcarpeta = None
 
-    def renombrar_carpeta(
-        self,
-        nuevo_nombre: str
-    ) -> None:
+    # --- Métodos Públicos Generales ---
+
+    def renombrar_carpeta(self, nuevo_nombre: str) -> None:
         """Renombra la carpeta previa validación."""
         self.__validar_str(nuevo_nombre)
         self.nombre_carpeta = nuevo_nombre.strip()
 
+    # --- Métodos Públicos Relacionados con el arbol Carpeta ---
 
-    def buscar_subcarpeta_por_nombre (
-        self,
-        nombre : str
-    ) -> Carpeta | None:
-        """Buscamos entre las carpetas actuales la carpeta deseada mediante el nombre"""
+    def buscar_subcarpeta_por_nombre(self, nombre: str) -> Carpeta | None:
+        """Busca entre las subcarpetas directas mediante su nombre."""
         self.__validar_str(nombre)
-        carpeta_actual = self._primer_subcarpeta
+        carpeta_actual = self.__primer_subcarpeta
 
-        while (carpeta_actual is not None):
-            if (carpeta_actual.nombre_carpeta == nombre):
-                carpeta_deseada = carpeta_actual
+        while carpeta_actual is not None:
+            if carpeta_actual.nombre_carpeta == nombre:
                 return carpeta_actual
+            carpeta_actual = carpeta_actual.__siguiente_subcarpeta
 
-            carpeta_actual = carpeta_actual._siguiente_subcarpeta
-        return None #Si no se encontro
+        return None
 
-    def buscar_subcarpeta_por_id (
-            self,
-            id : int
-    ) -> Carpeta | None:
-        """Buscamos entre las carpetas actuales la carpeta deseada mediante el nombre"""
+    def buscar_subcarpeta_por_id(self, id: int) -> Carpeta | None:
+        """Busca entre las subcarpetas directas mediante su ID."""
         self.__validar_id(id)
-        carpeta_actual = self._primer_subcarpeta
+        carpeta_actual = self.__primer_subcarpeta
 
-        while (carpeta_actual is not None):
-            if (carpeta_actual.id == id):
-                carpeta_deseada = carpeta_actual
+        while carpeta_actual is not None:
+            if carpeta_actual.id == id:
                 return carpeta_actual
+            carpeta_actual = carpeta_actual.__siguiente_subcarpeta
 
-            carpeta_actual = carpeta_actual._siguiente_subcarpeta
-        return None #Si no se encontro
+        return None
+
+    def agregar_subcarpeta(self, nueva_subcarpeta: Carpeta) -> None:
+        """Agrega una subcarpeta dentro de la carpeta actual."""
+        nueva_subcarpeta.__carpeta_padre = self
+        nueva_subcarpeta.direccion_carpeta = (
+            f"{self.direccion_carpeta}{self.separador_direccion}{nueva_subcarpeta.nombre_carpeta}"
+        )
+
+        if self.__primer_subcarpeta is None:
+            self.__primer_subcarpeta = nueva_subcarpeta
+        else:
+            subcarpeta_actual = self.__primer_subcarpeta
+            while subcarpeta_actual.__siguiente_subcarpeta is not None:
+                subcarpeta_actual = subcarpeta_actual.__siguiente_subcarpeta
+
+            subcarpeta_actual.__siguiente_subcarpeta = nueva_subcarpeta
+
+    def extraer_subcarpeta(
+        self,
+         id: int
+    ) -> Carpeta | None:
+        """Extrae una subcarpeta por su ID (funciona como un 'cortar').
+        Desconecta la carpeta del árbol actual y la retorna intacta.
+        """
+
+        self.__validar_id(id)
+        carpeta_anterior: Carpeta | None = None
+        carpeta_actual = self.__primer_subcarpeta
+
+        while carpeta_actual is not None:
+            if carpeta_actual.id == id:
+                break
+            carpeta_anterior = carpeta_actual
+            carpeta_actual = carpeta_actual.__siguiente_subcarpeta
+
+        # Si no se encontró la carpeta
+        if carpeta_actual is None:
+            return None
+
+        # CASO 1: Era la primera subcarpeta de la lista
+        if carpeta_anterior is None:
+            self.__primer_subcarpeta = carpeta_actual.__siguiente_subcarpeta
+        # CASO 2: Estaba en el medio o al final
+        else:
+            carpeta_anterior.__siguiente_subcarpeta = (
+                carpeta_actual.__siguiente_subcarpeta
+            )
+
+        # Aislamos la carpeta rompiendo sus conexiones anteriores
+        carpeta_actual.__siguiente_subcarpeta = None
+        carpeta_actual.__carpeta_padre = None
+        return carpeta_actual
+
+
+    def eliminar_subcarpeta(self, id: int) -> None:
+        """Elimina una subcarpeta a partir de su ID."""
+        self.__validar_id(id)
+        subcarpeta_actual = self.__primer_subcarpeta
+        subcarpeta_anterior: Carpeta | None = None
+
+        while subcarpeta_actual is not None:
+            if subcarpeta_actual.id == id:
+                break
+            subcarpeta_anterior = subcarpeta_actual
+            subcarpeta_actual = subcarpeta_actual.__siguiente_subcarpeta
+
+        if subcarpeta_actual is None:
+            raise ValueError(f"Subcarpeta con ID {id} no encontrada.")
+
+        # Caso A: El nodo a eliminar es el primero de la lista
+        if subcarpeta_anterior is None:
+            self.__primer_subcarpeta = subcarpeta_actual.__siguiente_subcarpeta
+        # Caso B: El nodo está en el medio o final
+        else:
+            subcarpeta_anterior.__siguiente_subcarpeta = (
+                subcarpeta_actual.__siguiente_subcarpeta
+            )
+
+        # Liberar punteros internos recursivamente
+        subcarpeta_actual.__vaciado_recursivo()
+
