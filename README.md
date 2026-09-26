@@ -27,17 +27,17 @@ Cada servidor debe:
 network-os/
 ├── src/
 │   └── network_os/
-│       ├── __init__.py
 │       ├── main.py                 ← punto de entrada, menú interactivo
-│       ├── arbol/                  ← sistema de directorios (árbol)
-│       │   └── __init__.py
-│       ├── hash_table/             ← autenticación (tabla hash propia)
-│       │   └── __init__.py
-│       ├── grafo/                  ← topología y enrutamiento de red
-│       │   └── __init__.py
-│       └── auditoria/              ← logging de transacciones
-│           └── __init__.py
-├── tests/                          ← pruebas sueltas por módulo
+│       └── logic/
+│           ├── controller/
+│           │   └── gestor_archivos.py
+│           ├── model/
+│           └── structure/
+│               └── carpeta/
+│                   └── carpeta.py
+├── tests/
+│   └── test_gestor_archivos.py
 ├── logs/                           ← aquí se genera network_audit_log.txt
 ├── .gitignore
 └── README.md
+```
