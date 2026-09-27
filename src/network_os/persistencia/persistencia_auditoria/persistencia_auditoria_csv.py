@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
-from ...model.registro_auditoria.registro_auditoria import RegistroAuditoria
+from ...logic.model.registro_auditoria.registro_auditoria import RegistroAuditoria
 
 
 class PersistenciaAuditoriaCSV:

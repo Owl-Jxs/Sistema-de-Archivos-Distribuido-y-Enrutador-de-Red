@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime
 
 
 class Archivo:
+    """Representa un archivo virtual almacenado completamente en memoria."""
+
     def __init__(
         self,
         id: int,
@@ -64,3 +67,13 @@ class Archivo:
     def actualizar_contenido(self, contenido: object) -> None:
         self.__contenido = contenido
         self.__ultima_modificacion = datetime.now()
+
+    def clonar(self, nuevo_id: int) -> Archivo:
+        """Crea una copia independiente conservando la fecha de modificacion."""
+        self.__validar_id(nuevo_id)
+        return Archivo(
+            id=nuevo_id,
+            nombre=self.__nombre,
+            contenido=deepcopy(self.__contenido),
+            ultima_modificacion=self.__ultima_modificacion,
+        )

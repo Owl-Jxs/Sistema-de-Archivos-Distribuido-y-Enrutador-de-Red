@@ -4,7 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from ..model.registro_auditoria.registro_auditoria import RegistroAuditoria
-from ..structure.persistencia_auditoria.persistencia_auditoria_csv import (
+from ...persistencia.persistencia_auditoria.persistencia_auditoria_csv import (
     PersistenciaAuditoriaCSV,
 )
 
