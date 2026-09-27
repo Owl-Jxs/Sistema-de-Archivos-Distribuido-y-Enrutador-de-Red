@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from network_os.logic.model.structure.archivo.archivo import Archivo
 class Carpeta:
     """Nodo de un arbol de carpetas con hijos directos enlazados."""
 
