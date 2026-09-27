@@ -32,11 +32,16 @@ network-os/
 │           ├── controller/
 │           │   └── gestor_archivos.py
 │           ├── model/
+│           │   └── nodo_hash/
+│           │       └── nodo_hash.py
 │           └── structure/
-│               └── carpeta/
-│                   └── carpeta.py
+│               ├── carpeta/
+│               │   └── carpeta.py
+│               └── hash_table/
+│                   └── hash_map.py
 ├── tests/
-│   └── test_gestor_archivos.py
+│   ├── test_gestor_archivos.py
+│   └── test_hash_map.py
 ├── logs/                           ← aquí se genera network_audit_log.txt
 ├── .gitignore
 └── README.md
