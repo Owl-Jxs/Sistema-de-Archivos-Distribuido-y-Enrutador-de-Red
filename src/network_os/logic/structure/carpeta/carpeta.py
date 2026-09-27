@@ -36,6 +36,7 @@ class Carpeta:
         self.__carpeta_padre = carpeta_padre
         self.__primer_subcarpeta = primer_subcarpeta
         self.__siguiente_subcarpeta = siguiente_subcarpeta
+        self.__archivos: list[Archivo] = []
 
         self.__actualizar_padres_y_direcciones_descendientes()
 
@@ -267,3 +268,59 @@ class Carpeta:
     def pegar_subcarpeta(self, carpeta: Carpeta) -> None:
         """Agrega una carpeta previamente extraida o clonada."""
         self.agregar_subcarpeta(carpeta)
+
+        def agregar_archivo(self, archivo: Archivo) -> None:
+        if not isinstance(archivo, Archivo):
+            raise TypeError("El archivo debe ser una instancia de Archivo.")
+
+        if any(
+            archivo_existente.nombre == archivo.nombre
+            for archivo_existente in self.__archivos
+        ):
+            raise ValueError(
+                "Ya existe un archivo con ese nombre en esta carpeta."
+            )
+
+        if any(
+            archivo_existente.id == archivo.id
+            for archivo_existente in self.__archivos
+        ):
+            raise ValueError(
+                "Ya existe un archivo con ese ID en esta carpeta."
+            )
+
+        self.__archivos.append(archivo)
+
+    def listar_archivos(self) -> list[Archivo]:
+        return list(self.__archivos)
+
+    def buscar_archivo_por_nombre(self, nombre: str) -> Archivo | None:
+        self.__validar_str(nombre)
+        nombre_limpio = nombre.strip()
+
+        for archivo in self.__archivos:
+            if archivo.nombre == nombre_limpio:
+                return archivo
+
+        return None
+
+    def buscar_archivo_por_id(self, id: int) -> Archivo | None:
+        self.__validar_id(id)
+
+        for archivo in self.__archivos:
+            if archivo.id == id:
+                return archivo
+
+        return None
+
+    def eliminar_archivo(self, id: int) -> Archivo:
+        archivo = self.buscar_archivo_por_id(id)
+
+        if archivo is None:
+            raise ValueError(
+                f"No se encontro ningun archivo con el ID {id}."
+            )
+
+        self.__archivos.remove(archivo)
+        return archivo
+    
