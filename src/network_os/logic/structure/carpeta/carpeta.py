@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from network_os.logic.model.structure.archivo.archivo import Archivo
+from ...model.archivo.archivo import Archivo
+
+
 class Carpeta:
-    """Nodo de un arbol de carpetas con hijos directos enlazados."""
+    """Nodo de un arbol de carpetas con archivos y subcarpetas enlazadas."""
 
     separador_direccion = "/"
 
@@ -15,6 +17,7 @@ class Carpeta:
         carpeta_padre: Carpeta | None = None,
         primer_subcarpeta: Carpeta | None = None,
         siguiente_subcarpeta: Carpeta | None = None,
+        archivos: list[Archivo] | None = None,
     ) -> None:
         self.__validar_id(id)
         self.__validar_str(nombre_carpeta)
@@ -36,9 +39,11 @@ class Carpeta:
         self.__carpeta_padre = carpeta_padre
         self.__primer_subcarpeta = primer_subcarpeta
         self.__siguiente_subcarpeta = siguiente_subcarpeta
-        self.__archivos: list[Archivo] = []
+        self.__archivos = self.__validar_archivos(archivos)
 
         self.__actualizar_padres_y_direcciones_descendientes()
+        self.__validar_nombres_directos()
+        self.__obtener_ids_subarbol()
 
     @property
     def id(self) -> int:
@@ -74,6 +79,29 @@ class Carpeta:
         if carpeta is not None and not isinstance(carpeta, Carpeta):
             raise TypeError(f"{nombre_parametro} debe ser una Carpeta o None.")
 
+    @staticmethod
+    def __validar_archivos(archivos: list[Archivo] | None) -> list[Archivo]:
+        if archivos is None:
+            return []
+        if not isinstance(archivos, list):
+            raise TypeError("Los archivos deben proporcionarse en una lista.")
+        if any(not isinstance(archivo, Archivo) for archivo in archivos):
+            raise TypeError("Todos los elementos deben ser instancias de Archivo.")
+        return list(archivos)
+
+    def __validar_nombres_directos(self) -> None:
+        nombres: set[str] = set()
+
+        for subcarpeta in self.listar_subcarpetas():
+            if subcarpeta.nombre_carpeta in nombres:
+                raise ValueError("Existen elementos con nombres repetidos.")
+            nombres.add(subcarpeta.nombre_carpeta)
+
+        for archivo in self.__archivos:
+            if archivo.nombre in nombres:
+                raise ValueError("Existen elementos con nombres repetidos.")
+            nombres.add(archivo.nombre)
+
     def __actualizar_padres_y_direcciones_descendientes(self) -> None:
         hijo = self.__primer_subcarpeta
         visitados: set[int] = set()
@@ -99,6 +127,7 @@ class Carpeta:
             hijo.__vaciado_recursivo()
             hijo = siguiente
 
+        self.__archivos.clear()
         self.__carpeta_padre = None
         self.__primer_subcarpeta = None
         self.__siguiente_subcarpeta = None
@@ -106,6 +135,10 @@ class Carpeta:
     def __clonar_recursivo(self, id_actual: int) -> tuple[Carpeta, int]:
         copia = Carpeta(id=id_actual, nombre_carpeta=self.__nombre_carpeta)
         siguiente_id = id_actual + 1
+
+        for archivo in self.__archivos:
+            copia.agregar_archivo(archivo.clonar(siguiente_id))
+            siguiente_id += 1
 
         hijo_actual = self.__primer_subcarpeta
         while hijo_actual is not None:
@@ -125,14 +158,24 @@ class Carpeta:
             identidad = id(carpeta)
             if identidad in nodos_visitados:
                 raise ValueError("El arbol de carpetas contiene un ciclo.")
-            if carpeta.__id in ids_encontrados:
-                raise ValueError("El arbol de carpetas contiene IDs repetidos.")
-
             nodos_visitados.add(identidad)
-            ids_encontrados.add(carpeta.__id)
-            pendientes.extend(carpeta.listar_contenido())
+
+            ids_directos = [carpeta.__id]
+            ids_directos.extend(archivo.id for archivo in carpeta.__archivos)
+            for id_elemento in ids_directos:
+                if id_elemento in ids_encontrados:
+                    raise ValueError("El arbol contiene IDs repetidos.")
+                ids_encontrados.add(id_elemento)
+
+            pendientes.extend(carpeta.listar_subcarpetas())
 
         return ids_encontrados
+
+    def __obtener_raiz(self) -> Carpeta:
+        raiz = self
+        while raiz.__carpeta_padre is not None:
+            raiz = raiz.__carpeta_padre
+        return raiz
 
     def renombrar_carpeta(self, nuevo_nombre: str) -> None:
         self.__validar_str(nuevo_nombre)
@@ -140,8 +183,9 @@ class Carpeta:
 
         if self.__carpeta_padre is not None:
             existente = self.__carpeta_padre.buscar_subcarpeta_por_nombre(nombre_limpio)
-            if existente is not None and existente is not self:
-                raise ValueError("Ya existe una subcarpeta con ese nombre en el padre.")
+            archivo = self.__carpeta_padre.buscar_archivo_por_nombre(nombre_limpio)
+            if (existente is not None and existente is not self) or archivo is not None:
+                raise ValueError("Ya existe un elemento con ese nombre en el padre.")
 
             base = self.__carpeta_padre.direccion_carpeta.rstrip(
                 self.separador_direccion
@@ -155,33 +199,39 @@ class Carpeta:
         self.__nombre_carpeta = nombre_limpio
         self.__actualizar_padres_y_direcciones_descendientes()
 
-    def listar_contenido(self) -> list[Carpeta]:
-        contenido: list[Carpeta] = []
+    def listar_subcarpetas(self) -> list[Carpeta]:
+        subcarpetas: list[Carpeta] = []
         actual = self.__primer_subcarpeta
         while actual is not None:
-            contenido.append(actual)
+            subcarpetas.append(actual)
             actual = actual.__siguiente_subcarpeta
-        return contenido
+        return subcarpetas
+
+    def listar_contenido(self) -> list[Carpeta]:
+        """Conserva el nombre historico para listar las subcarpetas directas."""
+        return self.listar_subcarpetas()
+
+    def listar_archivos(self) -> list[Archivo]:
+        return list(self.__archivos)
+
+    def listar_elementos(self) -> list[Carpeta | Archivo]:
+        return [*self.listar_subcarpetas(), *self.__archivos]
 
     def buscar_subcarpeta_por_nombre(self, nombre: str) -> Carpeta | None:
         self.__validar_str(nombre)
         nombre_limpio = nombre.strip()
-        actual = self.__primer_subcarpeta
 
-        while actual is not None:
-            if actual.__nombre_carpeta == nombre_limpio:
-                return actual
-            actual = actual.__siguiente_subcarpeta
+        for subcarpeta in self.listar_subcarpetas():
+            if subcarpeta.__nombre_carpeta == nombre_limpio:
+                return subcarpeta
         return None
 
     def buscar_subcarpeta_por_id(self, id: int) -> Carpeta | None:
         self.__validar_id(id)
-        actual = self.__primer_subcarpeta
 
-        while actual is not None:
-            if actual.__id == id:
-                return actual
-            actual = actual.__siguiente_subcarpeta
+        for subcarpeta in self.listar_subcarpetas():
+            if subcarpeta.__id == id:
+                return subcarpeta
         return None
 
     def agregar_subcarpeta(self, nueva_subcarpeta: Carpeta) -> None:
@@ -191,8 +241,11 @@ class Carpeta:
             raise ValueError("Extrae la carpeta de su padre antes de moverla.")
         if nueva_subcarpeta.__siguiente_subcarpeta is not None:
             raise ValueError("La carpeta todavia esta enlazada con otra hermana.")
-        if self.buscar_subcarpeta_por_nombre(nueva_subcarpeta.nombre_carpeta):
-            raise ValueError("Ya existe una subcarpeta con ese nombre en esta carpeta.")
+        if (
+            self.buscar_subcarpeta_por_nombre(nueva_subcarpeta.nombre_carpeta)
+            or self.buscar_archivo_por_nombre(nueva_subcarpeta.nombre_carpeta)
+        ):
+            raise ValueError("Ya existe un elemento con ese nombre en esta carpeta.")
 
         ancestro: Carpeta | None = self
         while ancestro is not None:
@@ -200,14 +253,10 @@ class Carpeta:
                 raise ValueError("No se puede crear un ciclo entre carpetas.")
             ancestro = ancestro.__carpeta_padre
 
-        raiz = self
-        while raiz.__carpeta_padre is not None:
-            raiz = raiz.__carpeta_padre
-
-        ids_existentes = raiz.__obtener_ids_subarbol()
+        ids_existentes = self.__obtener_raiz().__obtener_ids_subarbol()
         ids_nuevos = nueva_subcarpeta.__obtener_ids_subarbol()
         if ids_existentes & ids_nuevos:
-            raise ValueError("Ya existe una carpeta con uno de esos IDs en el arbol.")
+            raise ValueError("Ya existe un elemento con uno de esos IDs en el arbol.")
 
         if self.__primer_subcarpeta is None:
             self.__primer_subcarpeta = nueva_subcarpeta
@@ -226,7 +275,6 @@ class Carpeta:
         nueva_subcarpeta.__actualizar_padres_y_direcciones_descendientes()
 
     def extraer_subcarpeta(self, id: int) -> Carpeta:
-        """Desconecta y devuelve una subcarpeta directa sin borrar sus hijos."""
         self.__validar_id(id)
         anterior: Carpeta | None = None
         actual = self.__primer_subcarpeta
@@ -248,7 +296,6 @@ class Carpeta:
         return actual
 
     def eliminar_subcarpeta_irreversible(self) -> None:
-        """Desconecta esta carpeta y elimina todos sus enlaces internos."""
         if self.__carpeta_padre is not None:
             self.__carpeta_padre.extraer_subcarpeta(self.__id)
         self.__vaciado_recursivo()
@@ -262,37 +309,25 @@ class Carpeta:
 
         if original is None:
             raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
-
         return original.__clonar_recursivo(primer_nuevo_id)
 
     def pegar_subcarpeta(self, carpeta: Carpeta) -> None:
-        """Agrega una carpeta previamente extraida o clonada."""
         self.agregar_subcarpeta(carpeta)
 
-        def agregar_archivo(self, archivo: Archivo) -> None:
+    def agregar_archivo(self, archivo: Archivo) -> None:
         if not isinstance(archivo, Archivo):
             raise TypeError("El archivo debe ser una instancia de Archivo.")
-
-        if any(
-            archivo_existente.nombre == archivo.nombre
-            for archivo_existente in self.__archivos
+        if (
+            self.buscar_archivo_por_nombre(archivo.nombre)
+            or self.buscar_subcarpeta_por_nombre(archivo.nombre)
         ):
-            raise ValueError(
-                "Ya existe un archivo con ese nombre en esta carpeta."
-            )
+            raise ValueError("Ya existe un elemento con ese nombre en esta carpeta.")
 
-        if any(
-            archivo_existente.id == archivo.id
-            for archivo_existente in self.__archivos
-        ):
-            raise ValueError(
-                "Ya existe un archivo con ese ID en esta carpeta."
-            )
+        ids_existentes = self.__obtener_raiz().__obtener_ids_subarbol()
+        if archivo.id in ids_existentes:
+            raise ValueError("Ya existe un elemento con ese ID en el arbol.")
 
         self.__archivos.append(archivo)
-
-    def listar_archivos(self) -> list[Archivo]:
-        return list(self.__archivos)
 
     def buscar_archivo_por_nombre(self, nombre: str) -> Archivo | None:
         self.__validar_str(nombre)
@@ -301,7 +336,6 @@ class Carpeta:
         for archivo in self.__archivos:
             if archivo.nombre == nombre_limpio:
                 return archivo
-
         return None
 
     def buscar_archivo_por_id(self, id: int) -> Archivo | None:
@@ -310,17 +344,43 @@ class Carpeta:
         for archivo in self.__archivos:
             if archivo.id == id:
                 return archivo
-
         return None
 
-    def eliminar_archivo(self, id: int) -> Archivo:
+    def renombrar_archivo(self, id: int, nuevo_nombre: str) -> None:
+        self.__validar_id(id)
+        self.__validar_str(nuevo_nombre)
         archivo = self.buscar_archivo_por_id(id)
-
         if archivo is None:
-            raise ValueError(
-                f"No se encontro ningun archivo con el ID {id}."
-            )
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
+
+        nombre_limpio = nuevo_nombre.strip()
+        existente = self.buscar_archivo_por_nombre(nombre_limpio)
+        if (
+            (existente is not None and existente is not archivo)
+            or self.buscar_subcarpeta_por_nombre(nombre_limpio) is not None
+        ):
+            raise ValueError("Ya existe un elemento con ese nombre en esta carpeta.")
+
+        archivo.renombrar(nombre_limpio)
+
+    def extraer_archivo(self, id: int) -> Archivo:
+        self.__validar_id(id)
+        archivo = self.buscar_archivo_por_id(id)
+        if archivo is None:
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
 
         self.__archivos.remove(archivo)
         return archivo
-    
+
+    def eliminar_archivo(self, id: int) -> Archivo:
+        return self.extraer_archivo(id)
+
+    def clonar_archivo(self, id: int, nuevo_id: int) -> Archivo:
+        self.__validar_id(nuevo_id)
+        archivo = self.buscar_archivo_por_id(id)
+        if archivo is None:
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
+        return archivo.clonar(nuevo_id)
+
+    def pegar_archivo(self, archivo: Archivo) -> None:
+        self.agregar_archivo(archivo)

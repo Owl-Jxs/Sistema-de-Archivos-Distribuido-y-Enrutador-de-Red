@@ -7,7 +7,7 @@ from network_os.logic.controller.auditoria_servidor import AuditoriaServidor
 from network_os.logic.model.registro_auditoria.registro_auditoria import (
     RegistroAuditoria,
 )
-from network_os.logic.structure.persistencia_auditoria.persistencia_auditoria_csv import (
+from network_os.persistencia.persistencia_auditoria.persistencia_auditoria_csv import (
     PersistenciaAuditoriaCSV,
 )
 
