@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
-
+from ..structure.archivo.archivo import Archivo
 from ..structure.carpeta.carpeta import Carpeta
 
 
@@ -10,6 +10,33 @@ OperacionPortapapeles = Literal["Cortar", "Copiar"]
 
 class GestorArchivos:
     """Controla la navegacion y las operaciones del arbol de carpetas."""
+
+    def crear_nuevo_archivo(
+        self,
+        nombre: str,
+        contenido: object = None,
+    ) -> Archivo:
+        self.__validar_str(nombre)
+
+        archivo = Archivo(
+            id=self.__siguiente_id,
+            nombre=nombre,
+            contenido=contenido,
+        )
+
+        self.__carpeta_actual.agregar_archivo(archivo)
+        self.__siguiente_id += 1
+
+        return archivo
+
+    def buscar_archivo(self, nombre: str) -> Archivo | None:
+        self.__validar_str(nombre)
+
+        return self.__carpeta_actual.buscar_archivo_por_nombre(nombre)
+
+    def eliminar_archivo(self, id: int) -> Archivo:
+        archivo = self.__carpeta_actual.eliminar_archivo(id)
+        return archivo
 
     CORTAR = "Cortar"
     COPIAR = "Copiar"

@@ -1,0 +1,7 @@
+tipo,id,nombre,id_padre,contenido,ultima_modificacion
+CARPETA,0,Documentos,,,
+ARCHIVO,10,tarea.txt,0,Este es el contenido de la tarea.,2026-09-28T15:31:32.646598
+CARPETA,1,Universidad,0,,
+ARCHIVO,11,notas.txt,1,Notas de estructuras de datos.,2026-09-28T15:31:32.646598
+CARPETA,2,Proyectos,1,,
+ARCHIVO,12,proyecto.txt,2,Sistema de archivos distribuido.,2026-09-28T15:31:32.646598

@@ -1,6 +1,6 @@
 from __future__ import annotations
+from network_os.logic.structure.archivo.archivo import Archivo
 
-from network_os.logic.model.structure.archivo.archivo import Archivo
 class Carpeta:
     """Nodo de un arbol de carpetas con hijos directos enlazados."""
 
@@ -269,7 +269,7 @@ class Carpeta:
         """Agrega una carpeta previamente extraida o clonada."""
         self.agregar_subcarpeta(carpeta)
 
-        def agregar_archivo(self, archivo: Archivo) -> None:
+    def agregar_archivo(self, archivo: Archivo) -> None:
         if not isinstance(archivo, Archivo):
             raise TypeError("El archivo debe ser una instancia de Archivo.")
 
@@ -322,5 +322,4 @@ class Carpeta:
             )
 
         self.__archivos.remove(archivo)
-        return archivo
-    
+        return archivo    
