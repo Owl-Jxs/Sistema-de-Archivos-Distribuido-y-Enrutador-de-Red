@@ -4,8 +4,8 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
-from ..structure.archivo.archivo import Archivo
-from ..structure.carpeta.carpeta import Carpeta
+from ...logic.model.archivo.archivo import Archivo
+from ...logic.structure.carpeta.carpeta import Carpeta
 
 
 class PersistenciaArbolCSV:

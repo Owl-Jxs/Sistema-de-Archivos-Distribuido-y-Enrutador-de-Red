@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from typing import Literal
-from ..model.archivo.archivo import Archivo
-from ..structure.carpeta.carpeta import Carpeta
-
+from ...model.archivo.archivo import Archivo
+from ...structure.carpeta.carpeta import Carpeta
+from ....persistencia.persistencia_carpetas.persistencia_arbol_csv import PersistenciaArbolCSV
 
 OperacionPortapapeles = Literal["Cortar", "Copiar"]
 ElementoPortapapeles = Carpeta | Archivo
@@ -12,43 +12,26 @@ ElementoPortapapeles = Carpeta | Archivo
 class GestorArchivos:
     """Controla la navegacion y las operaciones del arbol de archivos."""
 
-    def crear_nuevo_archivo(
-        self,
-        nombre: str,
-        contenido: object = None,
-    ) -> Archivo:
-        self.__validar_str(nombre)
-
-        archivo = Archivo(
-            id=self.__siguiente_id,
-            nombre=nombre,
-            contenido=contenido,
-        )
-
-        self.__carpeta_actual.agregar_archivo(archivo)
-        self.__siguiente_id += 1
-
-        return archivo
-
-    def buscar_archivo(self, nombre: str) -> Archivo | None:
-        self.__validar_str(nombre)
-
-        return self.__carpeta_actual.buscar_archivo_por_nombre(nombre)
-
-    def eliminar_archivo(self, id: int) -> Archivo:
-        archivo = self.__carpeta_actual.eliminar_archivo(id)
-        return archivo
-
     CORTAR = "Cortar"
     COPIAR = "Copiar"
 
-    def __init__(self, nombre_repertorio: str) -> None:
+    def __init__(
+        self,
+        nombre_repertorio: str,
+        persistencia: PersistenciaArbolCSV | None = None,
+    ) -> None:
         self.__validar_str(nombre_repertorio)
         self.__nombre_repertorio = nombre_repertorio.strip()
         self.__raiz = Carpeta(id=0, nombre_carpeta=self.__nombre_repertorio)
         self.__carpeta_actual = self.__raiz
         self.__siguiente_id = 1
-
+        if persistencia is not None and not isinstance(
+            persistencia, PersistenciaArbolCSV
+        ):
+            raise TypeError(
+                "La persistencia debe ser una PersistenciaArbolCSV o None."
+            )
+        self.__persistencia = persistencia
         self.__elemento_portapapeles: ElementoPortapapeles | None = None
         self.__operacion_portapapeles: OperacionPortapapeles | None = None
         self.__carpeta_origen: Carpeta | None = None
@@ -91,6 +74,19 @@ class GestorArchivos:
         self.__elemento_portapapeles = None
         self.__carpeta_origen = None
 
+    def __recalcular_siguiente_id(self) -> None:
+        maximo_id = self.__raiz.id
+        pendientes = [self.__raiz]
+
+        while pendientes:
+            carpeta = pendientes.pop()
+            maximo_id = max(maximo_id, carpeta.id)
+            for archivo in carpeta.listar_archivos():
+                maximo_id = max(maximo_id, archivo.id)
+            pendientes.extend(carpeta.listar_subcarpetas())
+
+        self.__siguiente_id = maximo_id + 1
+
     @property
     def nombre_repertorio(self) -> str:
         return self.__nombre_repertorio
@@ -129,6 +125,30 @@ class GestorArchivos:
 
     def volver_a_raiz(self) -> None:
         self.__carpeta_actual = self.__raiz
+
+    def guardar_todo(self) -> None:
+        if self.__persistencia is None:
+            raise RuntimeError("El gestor no tiene una persistencia configurada.")
+        self.__persistencia.guardar(self.__raiz)
+
+    def guardar(self) -> None:
+        self.guardar_todo()
+
+    def cargar_servidor(self) -> None:
+        if self.__persistencia is None:
+            raise RuntimeError("El gestor no tiene una persistencia configurada.")
+        if not self.__persistencia.ruta_csv.exists():
+            return
+
+        self.__raiz = self.__persistencia.cargar()
+        self.__carpeta_actual = self.__raiz
+        self.__nombre_repertorio = self.__raiz.nombre_carpeta
+        self.__limpiar_portapapeles()
+        self.__recalcular_siguiente_id()
+
+    def cargar(self) -> None:
+        self.cargar_servidor()
+
 
     def crear_nueva_subcarpeta(self, nombre: str) -> Carpeta:
         self.__validar_str(nombre)
@@ -184,6 +204,22 @@ class GestorArchivos:
 
         self.__carpeta_actual.pegar_subcarpeta(self.__elemento_portapapeles)
         self.__limpiar_portapapeles()
+
+    def exportar_subcarpeta(self, id: int) -> Carpeta:
+        """Crea una copia completa sin modificar el portapapeles."""
+        self.__validar_id(id)
+        copia, _ = self.__carpeta_actual.clonar_subcarpeta(id, 0)
+        return copia
+
+    def importar_subcarpeta(self, carpeta: Carpeta) -> Carpeta:
+        """Inserta una copia con IDs validos para este arbol."""
+        if not isinstance(carpeta, Carpeta):
+            raise TypeError("El contenido importado debe ser una Carpeta.")
+
+        copia, siguiente_id = carpeta.clonar_subarbol(self.__siguiente_id)
+        self.__carpeta_actual.agregar_subcarpeta(copia)
+        self.__siguiente_id = siguiente_id
+        return copia
 
     def crear_nuevo_archivo(
         self, nombre: str, contenido: object = None

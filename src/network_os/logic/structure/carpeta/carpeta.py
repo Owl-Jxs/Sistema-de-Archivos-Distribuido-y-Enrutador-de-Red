@@ -308,6 +308,11 @@ class Carpeta:
             raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
         return original.__clonar_recursivo(primer_nuevo_id)
 
+    def clonar_subarbol(self, primer_nuevo_id: int) -> tuple[Carpeta, int]:
+        """Clona esta carpeta completa usando una secuencia nueva de IDs."""
+        self.__validar_id(primer_nuevo_id)
+        return self.__clonar_recursivo(primer_nuevo_id)
+
     def pegar_subcarpeta(self, carpeta: Carpeta) -> None:
         self.agregar_subcarpeta(carpeta)
 
@@ -346,34 +351,31 @@ class Carpeta:
     def renombrar_archivo(self, id: int, nuevo_nombre: str) -> None:
         self.__validar_id(id)
         self.__validar_str(nuevo_nombre)
-
         archivo = self.buscar_archivo_por_id(id)
-
         if archivo is None:
-            raise ValueError(
-                f"No se encontro ningun archivo con el ID {id}."
-            )
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
 
-        if any(
-            otro.id != id and otro.nombre == nuevo_nombre.strip()
-            for otro in self.__archivos
+        nombre_limpio = nuevo_nombre.strip()
+        existente = self.buscar_archivo_por_nombre(nombre_limpio)
+        if (
+            (existente is not None and existente is not archivo)
+            or self.buscar_subcarpeta_por_nombre(nombre_limpio) is not None
         ):
-            raise ValueError(
-                "Ya existe un archivo con ese nombre en esta carpeta."
-            )
+            raise ValueError("Ya existe un elemento con ese nombre en esta carpeta.")
 
-        archivo.renombrar(nuevo_nombre)
+        archivo.renombrar(nombre_limpio)
 
-    def eliminar_archivo(self, id: int) -> Archivo:
+    def extraer_archivo(self, id: int) -> Archivo:
+        self.__validar_id(id)
         archivo = self.buscar_archivo_por_id(id)
-
         if archivo is None:
-            raise ValueError(
-                f"No se encontro ningun archivo con el ID {id}."
-            )
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
 
         self.__archivos.remove(archivo)
         return archivo
+
+    def eliminar_archivo(self, id: int) -> Archivo:
+        return self.extraer_archivo(id)
 
     def clonar_archivo(self, id: int, nuevo_id: int) -> Archivo:
         self.__validar_id(nuevo_id)
