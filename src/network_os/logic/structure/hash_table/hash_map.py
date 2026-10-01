@@ -130,3 +130,12 @@ class HashMap:
 
     def esta_vacio(self) -> bool:
         return self.cantidad == 0
+
+    def obtener_elementos(self) -> list[tuple[object, Any]]:
+        elementos: list[tuple[object, Any]] = []
+        for primer_nodo in self.tabla:
+            actual = primer_nodo
+            while actual is not None:
+                elementos.append((actual.clave, actual.valor))
+                actual = actual.siguiente
+        return elementos

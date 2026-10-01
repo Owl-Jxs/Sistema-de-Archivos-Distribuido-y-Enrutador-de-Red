@@ -1,6 +1,6 @@
 import unittest
 ## TESTS hechos por AI para ver vulnerabilidades
-from network_os.logic.controller.gestor_archivos import GestorArchivos
+from network_os.logic.controller.gestor_archivos.gestor_archivos import GestorArchivos
 from network_os.logic.structure.carpeta.carpeta import Carpeta
 
 
