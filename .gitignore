@@ -38,3 +38,9 @@ Thumbs.db
 
 # Específico del proyecto
 logs/network_audit_log.csv
+
+# Archivos generados que no pertenecen al proyecto
+/.codex-build/
+/.codex-finalizer/
+/output/tipos-join-sql-*.pptx
+/assets/sql-joins-cover.png

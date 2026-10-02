@@ -1,8 +1,5 @@
 from __future__ import annotations
-
 from ...model.archivo.archivo import Archivo
-
-
 class Carpeta:
     """Nodo de un arbol de carpetas con archivos y subcarpetas enlazadas."""
 
@@ -310,6 +307,11 @@ class Carpeta:
         if original is None:
             raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
         return original.__clonar_recursivo(primer_nuevo_id)
+
+    def clonar_subarbol(self, primer_nuevo_id: int) -> tuple[Carpeta, int]:
+        """Clona esta carpeta completa usando una secuencia nueva de IDs."""
+        self.__validar_id(primer_nuevo_id)
+        return self.__clonar_recursivo(primer_nuevo_id)
 
     def pegar_subcarpeta(self, carpeta: Carpeta) -> None:
         self.agregar_subcarpeta(carpeta)

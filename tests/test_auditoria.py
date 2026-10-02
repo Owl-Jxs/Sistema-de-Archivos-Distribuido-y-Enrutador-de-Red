@@ -3,7 +3,9 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from network_os.logic.controller.auditoria_servidor import AuditoriaServidor
+from network_os.logic.controller.AuditoriaServidor.auditoria_servidor import (
+    AuditoriaServidor,
+)
 from network_os.logic.model.registro_auditoria.registro_auditoria import (
     RegistroAuditoria,
 )
