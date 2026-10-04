@@ -144,18 +144,28 @@ class PersistenciaRedCSVTests(unittest.TestCase):
                 .strip()
                 .splitlines()
             )
-            self.assertEqual(5, len(filas))
+            self.assertEqual(6, len(filas))
             self.assertTrue(filas[1].startswith("SERVIDOR,principal,1,"))
             self.assertEqual(
                 "CONEXION,,,,principal,secundario,10",
                 filas[4],
             )
+            self.assertEqual(
+                "CONEXION,,,,secundario,principal,10",
+                filas[5],
+            )
 
             principal = reconstruido.buscar_vertice("principal")
+            secundario = reconstruido.buscar_vertice("secundario")
             self.assertEqual(1, len(principal.conexiones))
             self.assertEqual(
                 10,
                 principal.conexiones[0].latencia_ms,
+            )
+            self.assertEqual(1, len(secundario.conexiones))
+            self.assertEqual(
+                10,
+                secundario.conexiones[0].latencia_ms,
             )
 
 

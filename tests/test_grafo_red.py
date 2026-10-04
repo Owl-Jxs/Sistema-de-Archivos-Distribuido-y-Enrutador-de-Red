@@ -54,7 +54,7 @@ class GrafoRedTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.__agregar_servidor(grafo, ruta_base, "principal", 2)
 
-    def test_agrega_conexion_entre_dos_vertices(self) -> None:
+    def test_agrega_conexion_bidireccional_entre_dos_vertices(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
             ruta_base = Path(temporal)
             grafo = self.__construir_grafo(ruta_base)
@@ -69,8 +69,44 @@ class GrafoRedTests(unittest.TestCase):
             self.assertEqual(1, len(origen.conexiones))
             self.assertIs(destino, origen.conexiones[0].destino)
             self.assertEqual(10, origen.conexiones[0].latencia_ms)
-            self.assertEqual([], destino.conexiones)
+            self.assertEqual(1, len(destino.conexiones))
+            self.assertIs(origen, destino.conexiones[0].destino)
             self.assertFalse(origen.esta_aislado())
+            self.assertFalse(destino.esta_aislado())
+
+    def test_rechaza_conexion_duplicada(self) -> None:
+        with tempfile.TemporaryDirectory() as temporal:
+            ruta_base = Path(temporal)
+            grafo = self.__construir_grafo(ruta_base)
+            self.__agregar_servidor(grafo, ruta_base, "principal", 1)
+            self.__agregar_servidor(grafo, ruta_base, "secundario", 2)
+            grafo.agregar_conexion("principal", "secundario", 10)
+
+            with self.assertRaises(ValueError):
+                grafo.agregar_conexion("principal", "secundario", 20)
+
+            with self.assertRaises(ValueError):
+                grafo.agregar_conexion("secundario", "principal", 20)
+
+    def test_eliminar_conexion_borra_las_dos_direcciones(self) -> None:
+        with tempfile.TemporaryDirectory() as temporal:
+            ruta_base = Path(temporal)
+            grafo = self.__construir_grafo(ruta_base)
+            self.__agregar_servidor(grafo, ruta_base, "principal", 1)
+            self.__agregar_servidor(grafo, ruta_base, "secundario", 2)
+            grafo.agregar_conexion("principal", "secundario", 10)
+
+            grafo.eliminar_conexion("secundario", "principal")
+
+            self.assertTrue(
+                grafo.buscar_vertice("principal").esta_aislado(),
+            )
+            self.assertTrue(
+                grafo.buscar_vertice("secundario").esta_aislado(),
+            )
+
+            with self.assertRaises(ValueError):
+                grafo.eliminar_conexion("principal", "secundario")
 
     def test_conexion_requiere_vertices_y_latencia_validos(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -129,7 +165,8 @@ class GrafoRedTests(unittest.TestCase):
             self.assertEqual(1, len(principal.conexiones))
             self.assertIs(secundario, principal.conexiones[0].destino)
             self.assertEqual(10, principal.conexiones[0].latencia_ms)
-            self.assertEqual([], secundario.conexiones)
+            self.assertEqual(1, len(secundario.conexiones))
+            self.assertIs(principal, secundario.conexiones[0].destino)
 
     def test_servidor_aislado_sobrevive_al_guardado(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:

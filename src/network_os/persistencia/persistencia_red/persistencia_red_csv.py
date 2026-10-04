@@ -139,6 +139,17 @@ class PersistenciaRedCSV:
                     f"no es numerica: {texto_latencia}."
                 ) from None
 
+            # guardar() escribe las dos direcciones de la arista; si la
+            # conexion inversa ya se reconstruyo, esta fila es redundante.
+            vertice_origen = grafo.buscar_vertice(origen)
+            vertice_destino = grafo.buscar_vertice(destino)
+
+            if (
+                vertice_origen.buscar_conexion(vertice_destino) is not None
+                or vertice_destino.buscar_conexion(vertice_origen) is not None
+            ):
+                continue
+
             grafo.agregar_conexion(origen, destino, latencia)
 
         return grafo

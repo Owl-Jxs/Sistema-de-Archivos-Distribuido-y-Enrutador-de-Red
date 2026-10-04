@@ -88,7 +88,7 @@ class GrafoRed:
         destino: str,
         latencia: float,
     ) -> None:
-        """Conecta el vertice de origen con el vertice de destino."""
+        """Conecta dos servidores con una arista bidireccional de latencia dada."""
         self.__validar_nombre(origen)
         self.__validar_nombre(destino)
         self.__validar_latencia(latencia)
@@ -96,9 +96,37 @@ class GrafoRed:
         vertice_origen = self.buscar_vertice(origen)
         vertice_destino = self.buscar_vertice(destino)
 
-        vertice_origen.agregar_conexion(
-            Conexion(vertice_destino, latencia),
-        )
+        if (
+            vertice_origen.buscar_conexion(vertice_destino) is not None
+            or vertice_destino.buscar_conexion(vertice_origen) is not None
+        ):
+            raise ValueError(
+                f"Ya existe una conexion entre {origen} y {destino}."
+            )
+
+        vertice_origen.agregar_conexion(Conexion(vertice_destino, latencia))
+        if vertice_origen is not vertice_destino:
+            vertice_destino.agregar_conexion(Conexion(vertice_origen, latencia))
+
+    def eliminar_conexion(self, origen: str, destino: str) -> None:
+        """Elimina la conexion bidireccional entre dos servidores."""
+        self.__validar_nombre(origen)
+        self.__validar_nombre(destino)
+
+        vertice_origen = self.buscar_vertice(origen)
+        vertice_destino = self.buscar_vertice(destino)
+
+        if (
+            vertice_origen.buscar_conexion(vertice_destino) is None
+            and vertice_destino.buscar_conexion(vertice_origen) is None
+        ):
+            raise ValueError(
+                f"No existe una conexion entre {origen} y {destino}."
+            )
+
+        vertice_origen.eliminar_conexion(vertice_destino)
+        if vertice_origen is not vertice_destino:
+            vertice_destino.eliminar_conexion(vertice_origen)
 
     def guardar(self) -> None:
         """Guarda los servidores y las conexiones de la red en el CSV."""
