@@ -174,8 +174,8 @@ class Servidor:
 
         almacenada = self.__credenciales_usuarios.obtener(nombre_limpio)
         autenticado = isinstance(almacenada, str) and compare_digest(
-            almacenada,
-            contrasena,
+            almacenada.encode("utf-8"),
+            contrasena.encode("utf-8"),
         )
         self.registrar_evento(
             "USUARIOS",
