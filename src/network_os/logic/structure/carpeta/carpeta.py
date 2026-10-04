@@ -214,6 +214,19 @@ class Carpeta:
     def listar_elementos(self) -> list[Carpeta | Archivo]:
         return [*self.listar_subcarpetas(), *self.__archivos]
 
+    def lineas_arbol(self, nivel: int = 0) -> list[str]:
+        """Describe el subarbol en lineas indentadas un nivel por carpetas."""
+        sangria = "    " * nivel
+        lineas = [f"{sangria}{self.__nombre_carpeta}/"]
+
+        for archivo in self.__archivos:
+            lineas.append(f"{sangria}    {archivo.nombre}")
+
+        for subcarpeta in self.listar_subcarpetas():
+            lineas.extend(subcarpeta.lineas_arbol(nivel + 1))
+
+        return lineas
+
     def buscar_subcarpeta_por_nombre(self, nombre: str) -> Carpeta | None:
         self.__validar_str(nombre)
         nombre_limpio = nombre.strip()

@@ -212,6 +212,9 @@ class Servidor:
     def buscar_archivo(self, nombre: str) -> Archivo | None:
         return self.__repositorio.buscar_archivo(nombre)
 
+    def mostrar_arbol(self) -> None:
+        self.__repositorio.mostrar_arbol()
+
     def obtener_carpeta_actual(self) -> Carpeta:
         return self.__repositorio.carpeta_actual
 
