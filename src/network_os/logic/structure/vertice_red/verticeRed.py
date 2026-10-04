@@ -1,4 +1,4 @@
-from conexion import conexion
+from ...model.conexion.conexion import Conexion
 
 class VerticeRed:
     #representa un servidor y sus conexiones dentro del grafo de red
