@@ -90,6 +90,19 @@ class GrafoRedTests(unittest.TestCase):
             with self.assertRaises(TypeError):
                 grafo.agregar_conexion("principal", "principal", "rapido")
 
+    def test_rechaza_latencias_no_finitas(self) -> None:
+        with tempfile.TemporaryDirectory() as temporal:
+            ruta_base = Path(temporal)
+            grafo = self.__construir_grafo(ruta_base)
+            self.__agregar_servidor(grafo, ruta_base, "principal", 1)
+
+            for latencia in (float("nan"), float("inf"), float("-inf")):
+                with self.subTest(latencia=latencia):
+                    with self.assertRaises(ValueError):
+                        grafo.agregar_conexion(
+                            "principal", "principal", latencia,
+                        )
+
     def test_guardar_y_cargar_conserva_la_red(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
             ruta_base = Path(temporal)

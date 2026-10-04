@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from ....persistencia.persistencia_red.persistencia_red_csv import (
@@ -52,6 +53,8 @@ class GrafoRed:
     def __validar_latencia(latencia: float) -> None:
         if isinstance(latencia, bool) or not isinstance(latencia, (int, float)):
             raise TypeError("La latencia debe ser un numero.")
+        if not math.isfinite(latencia):
+            raise ValueError("La latencia debe ser un numero finito.")
         if latencia < 0:
             raise ValueError("La latencia no puede ser negativa.")
 
