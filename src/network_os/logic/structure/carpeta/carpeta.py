@@ -340,6 +340,21 @@ class Carpeta:
                 return archivo
         return None
 
+    def buscar_archivo_recursivo(self, nombre: str) -> Archivo | None:
+        """Busca un archivo navegando todo el subarbol en profundidad."""
+        self.__validar_str(nombre)
+        nombre_limpio = nombre.strip()
+
+        encontrado = self.buscar_archivo_por_nombre(nombre_limpio)
+        if encontrado is not None:
+            return encontrado
+
+        for subcarpeta in self.listar_subcarpetas():
+            encontrado = subcarpeta.buscar_archivo_recursivo(nombre_limpio)
+            if encontrado is not None:
+                return encontrado
+        return None
+
     def buscar_archivo_por_id(self, id: int) -> Archivo | None:
         self.__validar_id(id)
 

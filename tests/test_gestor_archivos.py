@@ -148,6 +148,28 @@ class GestorArchivosTests(unittest.TestCase):
             gestor.raiz.buscar_subcarpeta_por_nombre("cortada"), cortada
         )
 
+    def test_busca_archivo_recursivo_en_todo_el_arbol(self) -> None:
+        gestor = GestorArchivos("servidor")
+        gestor.crear_nuevo_archivo("raiz.txt")
+        gestor.crear_nueva_subcarpeta("documentos")
+        gestor.bajar_a_subcarpeta("documentos")
+        gestor.crear_nuevo_archivo("tarea.txt")
+        gestor.crear_nueva_subcarpeta("internos")
+        gestor.bajar_a_subcarpeta("internos")
+        oculto = gestor.crear_nuevo_archivo("profundo.txt")
+        gestor.volver_a_raiz()
+
+        encontrado = gestor.buscar_archivo("profundo.txt")
+
+        self.assertIsNotNone(encontrado)
+        assert encontrado is not None
+        self.assertEqual(oculto.id, encontrado.id)
+        self.assertEqual(
+            "tarea.txt",
+            gestor.buscar_archivo("tarea.txt").nombre,  # type: ignore[union-attr]
+        )
+        self.assertIsNone(gestor.buscar_archivo("no_existe.txt"))
+
 
 if __name__ == "__main__":
     unittest.main()

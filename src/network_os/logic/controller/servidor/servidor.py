@@ -209,6 +209,9 @@ class Servidor:
     def listar_contenido(self) -> list[Carpeta | Archivo]:
         return self.__repositorio.listar_elementos()
 
+    def buscar_archivo(self, nombre: str) -> Archivo | None:
+        return self.__repositorio.buscar_archivo(nombre)
+
     def obtener_carpeta_actual(self) -> Carpeta:
         return self.__repositorio.carpeta_actual
 
