@@ -66,3 +66,23 @@ network-os/
 ├── .gitignore
 └── README.md
 ```
+
+---
+
+## ▶️ Cómo ejecutar los tests
+
+Requisito: Python 3.10 o superior.
+
+```bash
+pip install pytest
+py -m pytest tests
+```
+
+El `pyproject.toml` de la raíz le indica a pytest que busque los módulos en `src/`, así que no hace falta configurar nada más.
+
+Alternativa sin pytest (usa la librería estándar):
+
+```bash
+set PYTHONPATH=src        # macOS/Linux: export PYTHONPATH=src
+py -m unittest discover -s tests
+```
