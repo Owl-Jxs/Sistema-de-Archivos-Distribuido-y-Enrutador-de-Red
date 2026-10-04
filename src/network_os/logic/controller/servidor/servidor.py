@@ -127,7 +127,15 @@ class Servidor:
             if self.__credenciales_usuarios.contiene(nombre_limpio):
                 raise ValueError("El usuario ya esta registrado.")
             self.__credenciales_usuarios.insertar(nombre_limpio, contrasena)
-            self.__servidor_csv.usuarios.guardar(self.__credenciales_usuarios)
+            try:
+                self.__servidor_csv.usuarios.guardar(
+                    self.__credenciales_usuarios,
+                )
+            except Exception:
+                # si el guardado falla, la memoria no debe quedar
+                # divergida del CSV
+                self.__credenciales_usuarios.eliminar(nombre_limpio)
+                raise
 
         self.ejecutar_accion(
             "USUARIOS",
@@ -148,8 +156,21 @@ class Servidor:
             return False
 
         def operacion() -> bool:
+            contrasena_previa = self.__credenciales_usuarios.obtener(
+                nombre_limpio,
+            )
             eliminado = self.__credenciales_usuarios.eliminar(nombre_limpio)
-            self.__servidor_csv.usuarios.guardar(self.__credenciales_usuarios)
+            try:
+                self.__servidor_csv.usuarios.guardar(
+                    self.__credenciales_usuarios,
+                )
+            except Exception:
+                # si el guardado falla, revivir el usuario en memoria
+                self.__credenciales_usuarios.insertar(
+                    nombre_limpio,
+                    contrasena_previa,
+                )
+                raise
             return eliminado
 
         return self.ejecutar_accion(
