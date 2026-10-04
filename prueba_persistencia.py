@@ -1,7 +1,7 @@
-from network_os.logic.persistence.persistencia_arbol_csv import (
+from network_os.persistencia.persistencia_carpetas.persistencia_arbol_csv import (
     PersistenciaArbolCSV,
 )
-from network_os.logic.structure.archivo.archivo import Archivo
+from network_os.logic.model.archivo.archivo import Archivo
 from network_os.logic.structure.carpeta.carpeta import Carpeta
 
 
