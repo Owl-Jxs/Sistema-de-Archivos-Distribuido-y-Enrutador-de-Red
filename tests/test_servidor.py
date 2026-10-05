@@ -109,6 +109,15 @@ class ServidorTests(unittest.TestCase):
             self.assertFalse(servidor.eliminar_usuario("ana_01"))
             self.assertFalse(servidor.autenticar_usuario("ana_01", "clave123"))
 
+    def test_autentica_contrasenas_con_caracteres_no_ascii(self) -> None:
+        with tempfile.TemporaryDirectory() as temporal:
+            servidor = Servidor("principal", 1, Path(temporal))
+            servidor.agregar_usuario("bryan", "contraseña1")
+
+            self.assertTrue(servidor.autenticar_usuario("bryan", "contraseña1"))
+            self.assertFalse(servidor.autenticar_usuario("bryan", "contraseña2"))
+            self.assertFalse(servidor.autenticar_usuario("bryan", "otra123"))
+
     def test_expone_operaciones_de_carpetas(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
             servidor = Servidor("principal", 1, Path(temporal))

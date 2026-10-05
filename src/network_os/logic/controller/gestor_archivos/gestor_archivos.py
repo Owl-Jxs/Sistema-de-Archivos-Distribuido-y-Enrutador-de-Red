@@ -108,6 +108,16 @@ class GestorArchivos:
     def listar_elementos(self) -> list[Carpeta | Archivo]:
         return self.__carpeta_actual.listar_elementos()
 
+    def buscar_archivo(self, nombre: str) -> Archivo | None:
+        """Busca un archivo en todo el arbol de forma recursiva."""
+        self.__validar_str(nombre)
+        return self.__raiz.buscar_archivo_recursivo(nombre.strip())
+
+    def mostrar_arbol(self) -> None:
+        """Imprime el arbol completo en consola con indentacion por nivel."""
+        for linea in self.__raiz.lineas_arbol():
+            print(linea)
+
     def bajar_a_subcarpeta(self, nombre_subcarpeta: str) -> None:
         self.__validar_str(nombre_subcarpeta)
         subcarpeta = self.__carpeta_actual.buscar_subcarpeta_por_nombre(

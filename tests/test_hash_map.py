@@ -91,6 +91,50 @@ class HashMapTests(unittest.TestCase):
 
         self.assertEqual("valor", tabla.obtener(clave))
 
+    def test_dispersion_separa_permutaciones_de_los_mismos_caracteres(self) -> None:
+        tabla = HashMap(1000)
+        permutaciones = ("abcd", "badc", "cdab", "dcba")
+
+        indices = {tabla._obtener_indice(nombre) for nombre in permutaciones}
+
+        self.assertEqual(len(permutaciones), len(indices))
+
+    def test_nombres_structurados_no_se_aglomeran_en_una_cubeta(self) -> None:
+        tabla = HashMap()
+        nombres = [f"user{numero:03d}" for numero in range(1, 201)]
+
+        for nombre in nombres:
+            tabla.insertar(nombre, nombre)
+
+        largas = [
+            longitud
+            for longitud in (self.__longitud_cadena(cubo) for cubo in tabla.tabla)
+            if longitud > 0
+        ]
+        self.assertLess(max(largas), 20)
+        for nombre in nombres:
+            self.assertEqual(nombre, tabla.obtener(nombre))
+
+    @staticmethod
+    def __longitud_cadena(nodo) -> int:
+        cantidad = 0
+        while nodo is not None:
+            cantidad += 1
+            nodo = nodo.siguiente
+        return cantidad
+
+    def test_contiene_y_eliminar_funcionan_tras_redimensionar(self) -> None:
+        tabla = HashMap(2)
+
+        for numero in range(20):
+            tabla.insertar(f"clave-{numero}", numero)
+
+        self.assertTrue(tabla.contiene("clave-7"))
+        self.assertTrue(tabla.eliminar("clave-7"))
+        self.assertFalse(tabla.contiene("clave-7"))
+        self.assertIsNone(tabla.obtener("clave-7"))
+        self.assertEqual(19, tabla.tamano())
+
 
 if __name__ == "__main__":
     unittest.main()

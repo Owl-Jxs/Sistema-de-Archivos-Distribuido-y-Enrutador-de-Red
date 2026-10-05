@@ -1,4 +1,6 @@
+import io
 import unittest
+from contextlib import redirect_stdout
 ## TESTS hechos por AI para ver vulnerabilidades
 from network_os.logic.controller.gestor_archivos.gestor_archivos import GestorArchivos
 from network_os.logic.structure.carpeta.carpeta import Carpeta
@@ -146,6 +148,63 @@ class GestorArchivosTests(unittest.TestCase):
 
         self.assertIs(
             gestor.raiz.buscar_subcarpeta_por_nombre("cortada"), cortada
+        )
+
+    def test_busca_archivo_recursivo_en_todo_el_arbol(self) -> None:
+        gestor = GestorArchivos("servidor")
+        gestor.crear_nuevo_archivo("raiz.txt")
+        gestor.crear_nueva_subcarpeta("documentos")
+        gestor.bajar_a_subcarpeta("documentos")
+        gestor.crear_nuevo_archivo("tarea.txt")
+        gestor.crear_nueva_subcarpeta("internos")
+        gestor.bajar_a_subcarpeta("internos")
+        oculto = gestor.crear_nuevo_archivo("profundo.txt")
+        gestor.volver_a_raiz()
+
+        encontrado = gestor.buscar_archivo("profundo.txt")
+
+        self.assertIsNotNone(encontrado)
+        assert encontrado is not None
+        self.assertEqual(oculto.id, encontrado.id)
+        self.assertEqual(
+            "tarea.txt",
+            gestor.buscar_archivo("tarea.txt").nombre,  # type: ignore[union-attr]
+        )
+        self.assertIsNone(gestor.buscar_archivo("no_existe.txt"))
+
+    def test_mostrar_arbol_imprime_con_indentacion(self) -> None:
+        gestor = GestorArchivos("servidor")
+        gestor.crear_nuevo_archivo("usuarios.csv")
+        documentos = gestor.crear_nueva_subcarpeta("documentos")
+        gestor.bajar_a_subcarpeta("documentos")
+        gestor.crear_nuevo_archivo("tarea.txt")
+        gestor.volver_a_raiz()
+
+        salida = io.StringIO()
+        with redirect_stdout(salida):
+            gestor.mostrar_arbol()
+
+        lineas = salida.getvalue().splitlines()
+        self.assertEqual(
+            [
+                "servidor/",
+                "    usuarios.csv",
+                "    documentos/",
+                "        tarea.txt",
+            ],
+            lineas,
+        )
+
+    def test_lineas_arbol_incluye_subcarpetas_anidadas(self) -> None:
+        raiz = Carpeta(0, "raiz")
+        hija = Carpeta(1, "hija")
+        nieta = Carpeta(2, "nieta")
+        raiz.agregar_subcarpeta(hija)
+        hija.agregar_subcarpeta(nieta)
+
+        self.assertEqual(
+            ["raiz/", "    hija/", "        nieta/"],
+            raiz.lineas_arbol(),
         )
 
 

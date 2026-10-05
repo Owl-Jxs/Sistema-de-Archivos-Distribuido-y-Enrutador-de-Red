@@ -127,7 +127,15 @@ class Servidor:
             if self.__credenciales_usuarios.contiene(nombre_limpio):
                 raise ValueError("El usuario ya esta registrado.")
             self.__credenciales_usuarios.insertar(nombre_limpio, contrasena)
-            self.__servidor_csv.usuarios.guardar(self.__credenciales_usuarios)
+            try:
+                self.__servidor_csv.usuarios.guardar(
+                    self.__credenciales_usuarios,
+                )
+            except Exception:
+                # si el guardado falla, la memoria no debe quedar
+                # divergida del CSV
+                self.__credenciales_usuarios.eliminar(nombre_limpio)
+                raise
 
         self.ejecutar_accion(
             "USUARIOS",
@@ -148,8 +156,21 @@ class Servidor:
             return False
 
         def operacion() -> bool:
+            contrasena_previa = self.__credenciales_usuarios.obtener(
+                nombre_limpio,
+            )
             eliminado = self.__credenciales_usuarios.eliminar(nombre_limpio)
-            self.__servidor_csv.usuarios.guardar(self.__credenciales_usuarios)
+            try:
+                self.__servidor_csv.usuarios.guardar(
+                    self.__credenciales_usuarios,
+                )
+            except Exception:
+                # si el guardado falla, revivir el usuario en memoria
+                self.__credenciales_usuarios.insertar(
+                    nombre_limpio,
+                    contrasena_previa,
+                )
+                raise
             return eliminado
 
         return self.ejecutar_accion(
@@ -174,8 +195,8 @@ class Servidor:
 
         almacenada = self.__credenciales_usuarios.obtener(nombre_limpio)
         autenticado = isinstance(almacenada, str) and compare_digest(
-            almacenada,
-            contrasena,
+            almacenada.encode("utf-8"),
+            contrasena.encode("utf-8"),
         )
         self.registrar_evento(
             "USUARIOS",
@@ -187,6 +208,12 @@ class Servidor:
 
     def listar_contenido(self) -> list[Carpeta | Archivo]:
         return self.__repositorio.listar_elementos()
+
+    def buscar_archivo(self, nombre: str) -> Archivo | None:
+        return self.__repositorio.buscar_archivo(nombre)
+
+    def mostrar_arbol(self) -> None:
+        self.__repositorio.mostrar_arbol()
 
     def obtener_carpeta_actual(self) -> Carpeta:
         return self.__repositorio.carpeta_actual

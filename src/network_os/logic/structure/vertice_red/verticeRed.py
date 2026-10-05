@@ -1,4 +1,4 @@
-from conexion import conexion
+from ...model.conexion.conexion import Conexion
 
 class VerticeRed:
     #representa un servidor y sus conexiones dentro del grafo de red
@@ -14,8 +14,10 @@ class VerticeRed:
 
     def eliminar_conexion(self, destino):
         #elimina la conexion al destino y devuelve si pudo encontrarla
+        #compara por nombre de servidor: tras cargar() las referencias
+        #de los vertices se reconstruyen y la identidad (is) deja de valer
         for indice, conexion in enumerate(self.conexiones):
-            if conexion.destino is destino:
+            if self.__mismo_destino(conexion.destino, destino):
                 del self.conexiones[indice]
                 return True
         return False
@@ -23,9 +25,14 @@ class VerticeRed:
     def buscar_conexion(self, destino):
         #devuelve la conexion al destino
         for conexion in self.conexiones:
-            if conexion.destino is destino:
+            if self.__mismo_destino(conexion.destino, destino):
                 return conexion
         return None
+
+    @staticmethod
+    def __mismo_destino(actual, esperado):
+        #compara dos vertices por el nombre de su servidor
+        return actual.servidor.nombre == esperado.servidor.nombre
 
     def esta_aislado(self):
         #devuelve true si el vertice no tiene conexiones
