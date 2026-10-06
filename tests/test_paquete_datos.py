@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from network_os.logic.model.paquete_datos.paquete_datos import PaqueteDatos
 
@@ -19,6 +19,7 @@ class PaqueteDatosTests(unittest.TestCase):
         self.assertEqual("SUBCARPETA", paquete.tipo)
         self.assertIs(contenido, paquete.contenido)
         self.assertIsInstance(paquete.fecha_envio, datetime)
+        self.assertEqual(timedelta(hours=-6), paquete.fecha_envio.utcoffset())
 
     def test_rechaza_datos_invalidos(self) -> None:
         casos = (

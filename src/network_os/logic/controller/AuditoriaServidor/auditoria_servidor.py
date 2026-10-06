@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
+from ...model.fecha_hora import fecha_hora_actual_costa_rica
 from ...model.registro_auditoria.registro_auditoria import RegistroAuditoria
 from ....persistencia.persistencia_auditoria.persistencia_auditoria_csv import (
     PersistenciaAuditoriaCSV,
@@ -36,7 +34,7 @@ class AuditoriaServidor:
         self, categoria: str, accion: str, resultado: str, detalle: str
     ) -> None:
         registro = RegistroAuditoria(
-            fecha_hora=datetime.now(ZoneInfo("America/Costa_Rica")),
+            fecha_hora=fecha_hora_actual_costa_rica(),
             categoria=categoria,
             accion=accion,
             resultado=resultado,

@@ -58,11 +58,10 @@ network-os/
 │   ├── test_grafo_red.py
 │   ├── test_hash_map.py
 │   ├── test_paquete_datos.py
+│   ├── test_persistencia_arbol_csv.py
 │   ├── test_persistencia_red_csv.py
 │   ├── test_persistencia_usuarios_csv.py
 │   └── test_servidor.py
-├── datos/                           ← datos de ejemplo (archivos.csv)
-├── logs/
 ├── .gitignore
 └── README.md
 ```
