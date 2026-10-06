@@ -1,9 +1,10 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from network_os.logic.controller.servidor.servidor import Servidor
-from network_os.logic.structure.grafo_red.grafoRed import GrafoRed
+from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 
 
 class GrafoRedTests(unittest.TestCase):
@@ -207,6 +208,135 @@ class GrafoRedTests(unittest.TestCase):
             reconstruido.cargar()
 
             self.assertEqual([], reconstruido.vertices)
+
+
+class AlgoritmosRedTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporal = tempfile.TemporaryDirectory()
+        self.addCleanup(temporal.cleanup)
+        self.ruta_base = Path(temporal.name)
+        self.grafo = GrafoRed(self.ruta_base / "red.csv")
+        for indice, nombre in enumerate(("A", "B", "C", "D", "E")):
+            self.grafo.agregar_servidor(Servidor(nombre, indice, self.ruta_base))
+        for origen, destino, latencia in (
+            ("A", "B", 10), ("A", "C", 2), ("C", "B", 1),
+            ("B", "D", 4), ("C", "D", 20),
+        ):
+            self.grafo.agregar_conexion(origen, destino, latencia)
+
+    def test_bfs_por_niveles_con_ciclos_y_desconexion(self) -> None:
+        self.assertEqual(["A", "B", "C", "D"], self.grafo.bfs(" A "))
+        self.assertEqual(["E"], self.grafo.bfs("E"))
+
+    def test_grafo_conectado(self) -> None:
+        self.grafo.agregar_conexion("D", "E", 0.5)
+        self.assertEqual(["A", "B", "C", "D", "E"], self.grafo.bfs("A"))
+        distancias, _ = self.grafo.dijkstra("A")
+        self.assertEqual({"A": 0, "B": 3, "C": 2, "D": 7, "E": 7.5}, distancias)
+        self.assertEqual((["A", "C", "B", "D", "E"], 7.5),
+                         self.grafo.ruta_mas_corta("A", "E"))
+
+    def test_dijkstra_distancias_y_predecesores(self) -> None:
+        distancias, anteriores = self.grafo.dijkstra(" A ")
+        self.assertEqual({"A": 0, "B": 3, "C": 2, "D": 7, "E": float("inf")},
+                         distancias)
+        self.assertEqual({"A": None, "B": "C", "C": "A", "D": "B", "E": None},
+                         anteriores)
+
+    def test_origen_aislado(self) -> None:
+        distancias, anteriores = self.grafo.dijkstra("E")
+        self.assertEqual({"A": float("inf"), "B": float("inf"),
+                          "C": float("inf"), "D": float("inf"), "E": 0},
+                         distancias)
+        self.assertTrue(all(anterior is None for anterior in anteriores.values()))
+        self.assertEqual({"A": None, "B": None, "C": None, "D": None},
+                         self.grafo.ping_general("E"))
+
+    def test_ruta_indirecta_mas_barata_y_sentido_inverso(self) -> None:
+        self.assertEqual((["A", "C", "B"], 3),
+                         self.grafo.ruta_mas_corta(" A ", " B "))
+        self.assertEqual((["D", "B", "C", "A"], 7),
+                         self.grafo.ruta_mas_corta("D", "A"))
+        self.assertEqual((["A", "C"], 2), self.grafo.ruta_mas_corta("A", "C"))
+
+    def test_origen_igual_destino_e_inalcanzable(self) -> None:
+        for nombre in ("A", "E"):
+            with self.subTest(nombre=nombre):
+                self.assertEqual(([nombre], 0),
+                                 self.grafo.ruta_mas_corta(nombre, nombre))
+        self.assertIsNone(self.grafo.ruta_mas_corta("A", "E"))
+
+    def test_identificadores_invalidos_o_inexistentes(self) -> None:
+        for nombre in ("fantasma", "", "   ", None, 1):
+            for metodo in (self.grafo.bfs, self.grafo.dijkstra, self.grafo.ping_general):
+                with self.subTest(metodo=metodo.__name__, nombre=nombre):
+                    with self.assertRaises(ValueError):
+                        metodo(nombre)
+            for origen, destino in ((nombre, "A"), ("A", nombre), (nombre, nombre)):
+                with self.subTest(origen=origen, destino=destino):
+                    with self.assertRaises(ValueError):
+                        self.grafo.ruta_mas_corta(origen, destino)
+
+    def test_grafo_vacio_rechaza_origen_inexistente(self) -> None:
+        grafo = GrafoRed(self.ruta_base / "vacio.csv")
+        for metodo in (grafo.bfs, grafo.dijkstra, grafo.ping_general):
+            with self.subTest(metodo=metodo.__name__):
+                with self.assertRaises(ValueError):
+                    metodo("A")
+        with self.assertRaises(ValueError):
+            grafo.ruta_mas_corta("A", "A")
+
+    def test_ping_de_unico_vertice(self) -> None:
+        grafo = GrafoRed(self.ruta_base / "unico.csv")
+        grafo.agregar_servidor(Servidor("unico", 8, self.ruta_base))
+        self.assertEqual({}, grafo.ping_general("unico"))
+
+    def test_ping_y_ruta_reutilizan_una_ejecucion_de_dijkstra(self) -> None:
+        with patch.object(self.grafo, "dijkstra", wraps=self.grafo.dijkstra) as calculo:
+            self.assertEqual({"B": 3, "C": 2, "D": 7, "E": None},
+                             self.grafo.ping_general(" A "))
+            calculo.assert_called_once_with(" A ")
+        with patch.object(self.grafo, "dijkstra", wraps=self.grafo.dijkstra) as calculo:
+            self.assertEqual((["A", "C", "B", "D"], 7),
+                             self.grafo.ruta_mas_corta("A", "D"))
+            calculo.assert_called_once_with("A")
+
+    def test_ciclos_y_autoconexiones_de_peso_cero(self) -> None:
+        self.grafo.agregar_conexion("A", "A", 0)
+        self.grafo.agregar_conexion("A", "D", 0)
+        self.grafo.agregar_conexion("D", "E", 0)
+        self.grafo.agregar_conexion("E", "A", 0)
+        self.assertEqual(["A", "B", "C", "D", "E"], self.grafo.bfs("A"))
+        self.assertEqual((["A", "E"], 0), self.grafo.ruta_mas_corta("A", "E"))
+        self.assertEqual((["A"], 0), self.grafo.ruta_mas_corta("A", "A"))
+
+    def test_rechaza_latencias_modificadas_invalidas(self) -> None:
+        conexion = self.grafo.buscar_vertice("A").conexiones[0]
+        for latencia, error in ((-1, ValueError), (float("nan"), ValueError),
+                                (float("inf"), ValueError), (True, TypeError),
+                                ("rapido", TypeError)):
+            conexion.actualizar_latencia(latencia)
+            for metodo in (self.grafo.dijkstra, self.grafo.ping_general):
+                with self.subTest(latencia=latencia, metodo=metodo.__name__):
+                    with self.assertRaises(error):
+                        metodo("A")
+            with self.assertRaises(error):
+                self.grafo.ruta_mas_corta("A", "A")
+
+    def test_rechaza_peso_negativo_en_componente_desconectado(self) -> None:
+        self.grafo.agregar_conexion("E", "E", 1)
+        self.grafo.buscar_vertice("E").conexiones[0].actualizar_latencia(-1)
+        with self.assertRaises(ValueError):
+            self.grafo.dijkstra("A")
+
+    def test_algoritmos_con_red_reconstruida(self) -> None:
+        self.grafo.guardar()
+        self.grafo.cargar()
+        self.assertEqual(["A", "B", "C", "D"], self.grafo.bfs("A"))
+        self.assertEqual((["A", "C", "B", "D"], 7),
+                         self.grafo.ruta_mas_corta("A", "D"))
+        self.assertEqual({"B": 3, "C": 2, "D": 7, "E": None},
+                         self.grafo.ping_general("A"))
 
 
 if __name__ == "__main__":

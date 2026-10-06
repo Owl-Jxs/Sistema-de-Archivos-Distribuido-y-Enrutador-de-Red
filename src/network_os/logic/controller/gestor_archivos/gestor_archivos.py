@@ -118,6 +118,10 @@ class GestorArchivos:
         for linea in self.__raiz.lineas_arbol():
             print(linea)
 
+    def imprimir_arbol(self) -> None:
+        """Imprime desde la raiz todas las carpetas y archivos con ramas ASCII."""
+        print("\n".join(self.__raiz.lineas_estructura()))
+
     def bajar_a_subcarpeta(self, nombre_subcarpeta: str) -> None:
         self.__validar_str(nombre_subcarpeta)
         subcarpeta = self.__carpeta_actual.buscar_subcarpeta_por_nombre(
