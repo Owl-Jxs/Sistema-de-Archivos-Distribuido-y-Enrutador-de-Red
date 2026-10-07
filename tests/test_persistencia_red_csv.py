@@ -2,6 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from network_os.logic.controller.auditoria.auditoria import Auditoria
+from network_os.persistencia.persistencia_auditoria.persistencia_auditoria_csv import PersistenciaAuditoriaCSV
+
 from network_os.logic.controller.servidor.servidor import Servidor
 from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 from network_os.persistencia.persistencia_red.persistencia_red_csv import (
@@ -10,6 +13,13 @@ from network_os.persistencia.persistencia_red.persistencia_red_csv import (
 
 
 class PersistenciaRedCSVTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporal_auditoria = tempfile.TemporaryDirectory()
+        self.addCleanup(temporal_auditoria.cleanup)
+        self.auditoria = Auditoria("RED", PersistenciaAuditoriaCSV(
+            Path(temporal_auditoria.name) / "network_audit_log.txt"
+        ))
+
     @staticmethod
     def __escribir_csv(ruta: Path, contenido: str) -> None:
         ruta.write_text(contenido, encoding="utf-8")
@@ -36,7 +46,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             )
 
             with self.assertRaises(FileNotFoundError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_guardar_rechaza_objetos_que_no_son_grafo(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -52,7 +62,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_cargar_con_tipo_desconocido_lanza_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -65,7 +75,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_cargar_servidor_duplicado_lanza_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -79,7 +89,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_cargar_conexion_a_servidor_inexistente_lanza_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -93,7 +103,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_cargar_con_latencia_no_numerica_lanza_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -108,7 +118,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_cargar_sin_columnas_requeridas_lanza_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
@@ -117,12 +127,12 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             persistencia = PersistenciaRedCSV(ruta)
 
             with self.assertRaises(ValueError):
-                persistencia.cargar()
+                persistencia.cargar(self.auditoria)
 
     def test_guardar_y_cargar_roundtrip_completo(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
             ruta_base = Path(temporal)
-            grafo = GrafoRed(ruta_base / "red_conexiones.csv")
+            grafo = GrafoRed(ruta_base / "red_conexiones.csv", auditoria=self.auditoria)
 
             grafo.agregar_servidor(Servidor("principal", 1, ruta_base))
             grafo.agregar_servidor(Servidor("secundario", 2, ruta_base))
@@ -132,7 +142,7 @@ class PersistenciaRedCSVTests(unittest.TestCase):
             grafo.guardar()
 
             persistencia = PersistenciaRedCSV(ruta_base / "red_conexiones.csv")
-            reconstruido = persistencia.cargar()
+            reconstruido = persistencia.cargar(self.auditoria)
 
             self.assertIsInstance(reconstruido, GrafoRed)
             self.assertEqual(3, len(reconstruido.vertices))
