@@ -15,7 +15,7 @@ Cada servidor debe:
 - **Administrar su propio sistema de archivos interno** mediante un árbol (jerarquía de carpetas y archivos, con búsqueda recursiva y eliminación en cascada).
 - **Autenticar usuarios en tiempo constante `O(1)`** mediante una tabla hash construida desde cero (función de dispersión propia y manejo de colisiones).
 - **Enrutar paquetes de datos entre servidores** usando un grafo ponderado, aplicando **Dijkstra** para encontrar la ruta más corta y **BFS/DFS** para diagnosticar si la red está completamente conectada o si hay servidores aislados.
-- **Registrar toda acción relevante** en un archivo CSV de auditoría por servidor (`servidores/<nombre>_<id>/auditoria.csv`), con fecha, hora y detalle de la transacción.
+- **Registrar toda acción relevante** en un archivo CSV de auditoría por servidor (`servidores/<nombre>_<id>/auditoria.csv`) y las operaciones generales de la red en `network_audit_log.txt`, con fecha, hora, origen, acción, resultado y detalle.
 
 > El proyecto es de naturaleza **evolutiva**: cada semana se integrarán nuevas reglas de negocio publicadas por el equipo docente (*Sprints*), por lo que el código debe mantenerse **modular y ordenado** desde el inicio.
 
@@ -27,7 +27,7 @@ Cada servidor debe:
 network-os/
 ├── src/
 │   └── network_os/
-│       ├── main.py                 ← punto de entrada, menú interactivo
+│       ├── main.py                 ← reservado para el controlador de la vista
 │       ├── persistencia/
 │       │   ├── persistencias_servidorCSV/
 │       │   ├── persistencia_auditoria/
@@ -36,8 +36,9 @@ network-os/
 │       │   └── persistencia_usuarios/
 │       └── logic/
 │           ├── controller/
-│           │   ├── AuditoriaServidor/
+│           │   ├── auditoria/
 │           │   ├── gestor_archivos/
+│           │   ├── grafo_red/
 │           │   └── servidor/
 │           ├── model/
 │           │   ├── archivo/
@@ -48,12 +49,12 @@ network-os/
 │           │   └── resultado_envio/
 │           └── structure/
 │               ├── carpeta/
-│               ├── grafo_red/
 │               ├── hash_table/
 │               └── vertice_red/
 ├── tests/
 │   ├── test_archivos.py
 │   ├── test_auditoria.py
+│   ├── test_auditoria_descentralizada.py
 │   ├── test_gestor_archivos.py
 │   ├── test_grafo_red.py
 │   ├── test_hash_map.py
@@ -67,6 +68,26 @@ network-os/
 ```
 
 ---
+
+## Auditoría descentralizada
+
+`Auditoria` se reutiliza como clase, pero sus instancias y archivos son independientes. Cada `Servidor` crea su auditoría local al construirse, también cuando se carga desde el CSV de la red. `GrafoRed` recibe únicamente la auditoría general por constructor y no consulta ni combina los registros locales.
+
+La futura interfaz puede construir el grafo así; `main.py` permanece reservado para la vista:
+
+```python
+from network_os.logic.controller.auditoria.auditoria import Auditoria
+from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
+from network_os.persistencia.persistencia_auditoria.persistencia_auditoria_csv import PersistenciaAuditoriaCSV
+
+auditoria_red = Auditoria("RED", PersistenciaAuditoriaCSV())
+grafo = GrafoRed(auditoria=auditoria_red)
+registros_red = grafo.consultar_auditoria()
+```
+
+La persistencia usa append. Los CSV locales antiguos se conservan y siguen siendo consultables; sus filas sin origen se muestran como `DESCONOCIDO`. Para consultar un servidor se usa `servidor.consultar_auditoria()`. Las operaciones de archivos y carpetas deben llamarse mediante `Servidor` para que queden auditadas.
+
+Las altas de servidores, altas y bajas de conexiones, rutas, ping y guardado/carga de la red registran su resultado una sola vez. Una ruta calculada no registra una entrega. El grafo actual todavía no implementa eliminar servidores, modificar latencias ni enviar paquetes; esta modificación no agrega esas operaciones.
 
 ## ▶️ Cómo ejecutar los tests
 

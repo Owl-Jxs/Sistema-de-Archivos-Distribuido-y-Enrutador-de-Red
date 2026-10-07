@@ -1,6 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+
+from network_os.logic.controller.auditoria.auditoria import Auditoria
+from network_os.persistencia.persistencia_auditoria.persistencia_auditoria_csv import PersistenciaAuditoriaCSV
 from unittest.mock import patch
 
 from network_os.logic.controller.servidor.servidor import Servidor
@@ -8,8 +11,15 @@ from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 
 
 class GrafoRedTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporal_auditoria = tempfile.TemporaryDirectory()
+        self.addCleanup(temporal_auditoria.cleanup)
+        self.auditoria = Auditoria("RED", PersistenciaAuditoriaCSV(
+            Path(temporal_auditoria.name) / "network_audit_log.txt"
+        ))
+
     def __construir_grafo(self, ruta_base: Path) -> GrafoRed:
-        return GrafoRed(ruta_base / "red_conexiones.csv")
+        return GrafoRed(ruta_base / "red_conexiones.csv", auditoria=self.auditoria)
 
     @staticmethod
     def __agregar_servidor(
@@ -212,10 +222,15 @@ class GrafoRedTests(unittest.TestCase):
 
 class AlgoritmosRedTests(unittest.TestCase):
     def setUp(self) -> None:
+        temporal_auditoria = tempfile.TemporaryDirectory()
+        self.addCleanup(temporal_auditoria.cleanup)
+        self.auditoria = Auditoria("RED", PersistenciaAuditoriaCSV(
+            Path(temporal_auditoria.name) / "network_audit_log.txt"
+        ))
         temporal = tempfile.TemporaryDirectory()
         self.addCleanup(temporal.cleanup)
         self.ruta_base = Path(temporal.name)
-        self.grafo = GrafoRed(self.ruta_base / "red.csv")
+        self.grafo = GrafoRed(self.ruta_base / "red.csv", auditoria=self.auditoria)
         for indice, nombre in enumerate(("A", "B", "C", "D", "E")):
             self.grafo.agregar_servidor(Servidor(nombre, indice, self.ruta_base))
         for origen, destino, latencia in (
@@ -278,7 +293,7 @@ class AlgoritmosRedTests(unittest.TestCase):
                         self.grafo.ruta_mas_corta(origen, destino)
 
     def test_grafo_vacio_rechaza_origen_inexistente(self) -> None:
-        grafo = GrafoRed(self.ruta_base / "vacio.csv")
+        grafo = GrafoRed(self.ruta_base / "vacio.csv", auditoria=self.auditoria)
         for metodo in (grafo.bfs, grafo.dijkstra, grafo.ping_general):
             with self.subTest(metodo=metodo.__name__):
                 with self.assertRaises(ValueError):
@@ -287,7 +302,7 @@ class AlgoritmosRedTests(unittest.TestCase):
             grafo.ruta_mas_corta("A", "A")
 
     def test_ping_de_unico_vertice(self) -> None:
-        grafo = GrafoRed(self.ruta_base / "unico.csv")
+        grafo = GrafoRed(self.ruta_base / "unico.csv", auditoria=self.auditoria)
         grafo.agregar_servidor(Servidor("unico", 8, self.ruta_base))
         self.assertEqual({}, grafo.ping_general("unico"))
 

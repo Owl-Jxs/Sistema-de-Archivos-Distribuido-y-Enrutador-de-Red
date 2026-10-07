@@ -7,7 +7,9 @@ from ....persistencia.persistencia_red.persistencia_red_csv import (
     PersistenciaRedCSV,
 )
 from ..servidor.servidor import Servidor
+from ..auditoria.auditoria import Auditoria
 from ...model.conexion.conexion import Conexion
+from ...model.registro_auditoria.registro_auditoria import RegistroAuditoria
 from ...structure.vertice_red.verticeRed import VerticeRed
 
 
@@ -17,8 +19,13 @@ class GrafoRed:
     def __init__(
         self,
         ruta_conexiones_csv: str | Path = "datos/red_conexiones.csv",
+        *,
+        auditoria: Auditoria,
     ) -> None:
         self.__validar_ruta(ruta_conexiones_csv)
+        if not isinstance(auditoria, Auditoria):
+            raise TypeError("La auditoria debe ser una instancia de Auditoria.")
+        self.__auditoria = auditoria
 
         self.__vertices: list[VerticeRed] = []
         self.__persistencia = PersistenciaRedCSV(ruta_conexiones_csv)
@@ -30,6 +37,13 @@ class GrafoRed:
     @property
     def persistencia(self) -> PersistenciaRedCSV:
         return self.__persistencia
+
+    @property
+    def auditoria(self) -> Auditoria:
+        return self.__auditoria
+
+    def consultar_auditoria(self) -> list[RegistroAuditoria]:
+        return self.__auditoria.consultar_todo()
 
     @staticmethod
     def __validar_ruta(ruta_conexiones_csv: str | Path) -> None:
@@ -60,6 +74,17 @@ class GrafoRed:
 
     def agregar_servidor(self, servidor: Servidor) -> None:
         """Agrega un servidor como vertice nuevo de la red."""
+        detalle = (
+            f"Servidor '{servidor.nombre}', ID {servidor.id}."
+            if isinstance(servidor, Servidor) else "Servidor invalido."
+        )
+        self.__auditoria.ejecutar(
+            "RED", "AGREGAR_SERVIDOR", detalle,
+            lambda: self._agregar_servidor(servidor),
+        )
+
+    def _agregar_servidor(self, servidor: Servidor) -> None:
+        """Insercion validada; la carga la reutiliza sin registrar un alta nueva."""
         self.__validar_servidor(servidor)
 
         if self.__buscar_vertice_interno(servidor.nombre) is not None:
@@ -89,6 +114,14 @@ class GrafoRed:
         latencia: float,
     ) -> None:
         """Conecta dos servidores con una arista bidireccional de latencia dada."""
+        self.__auditoria.ejecutar(
+            "RED", "AGREGAR_CONEXION",
+            f"Origen: {origen}; destino: {destino}; latencia: {latencia} ms.",
+            lambda: self._agregar_conexion(origen, destino, latencia),
+        )
+
+    def _agregar_conexion(self, origen: str, destino: str, latencia: float) -> None:
+        """Conexion validada, tambien utilizada al reconstruir el CSV."""
         self.__validar_nombre(origen)
         self.__validar_nombre(destino)
         self.__validar_latencia(latencia)
@@ -110,6 +143,13 @@ class GrafoRed:
 
     def eliminar_conexion(self, origen: str, destino: str) -> None:
         """Elimina la conexion bidireccional entre dos servidores."""
+        self.__auditoria.ejecutar(
+            "RED", "ELIMINAR_CONEXION",
+            f"Origen: {origen}; destino: {destino}.",
+            lambda: self.__eliminar_conexion(origen, destino),
+        )
+
+    def __eliminar_conexion(self, origen: str, destino: str) -> None:
         self.__validar_nombre(origen)
         self.__validar_nombre(destino)
 
@@ -200,6 +240,22 @@ class GrafoRed:
         self, origen: str, destino: str,
     ) -> tuple[list[str], float] | None:
         """Devuelve (nombres de la ruta, latencia total), o None si no hay ruta."""
+        detalle = f"Origen: {origen}; destino: {destino}."
+
+        def describir(resultado: tuple[list[str], float] | None) -> tuple[str, str]:
+            if resultado is None:
+                return "FALLIDO", f"{detalle} No existe una ruta."
+            ruta, costo = resultado
+            return "EXITOSO", f"{detalle} Recorrido: {' -> '.join(ruta)}; costo: {costo} ms."
+
+        return self.__auditoria.ejecutar(
+            "RED", "RUTA_MAS_CORTA", detalle,
+            lambda: self.__ruta_mas_corta(origen, destino), describir,
+        )
+
+    def __ruta_mas_corta(
+        self, origen: str, destino: str,
+    ) -> tuple[list[str], float] | None:
         self.buscar_vertice(origen)
         nombre_destino = self.buscar_vertice(destino).servidor.nombre
         distancias, anteriores = self.dijkstra(origen)
@@ -217,6 +273,20 @@ class GrafoRed:
 
     def ping_general(self, origen: str) -> dict[str, float | None]:
         """Latencia minima a cada otro servidor; None indica que es inalcanzable."""
+        def describir(resultado: dict[str, float | None]) -> tuple[str, str]:
+            destinos = "; ".join(
+                f"{nombre}: {latencia} ms" if latencia is not None
+                else f"{nombre}: inalcanzable"
+                for nombre, latencia in resultado.items()
+            )
+            return "EXITOSO", f"Origen: {origen}; {destinos or 'sin otros servidores'}."
+
+        return self.__auditoria.ejecutar(
+            "RED", "PING_GENERAL", f"Origen: {origen}.",
+            lambda: self.__ping_general(origen), describir,
+        )
+
+    def __ping_general(self, origen: str) -> dict[str, float | None]:
         distancias, _ = self.dijkstra(origen)
         return {
             nombre: distancia if distancia != math.inf else None
@@ -226,12 +296,20 @@ class GrafoRed:
 
     def guardar(self) -> None:
         """Guarda los servidores y las conexiones de la red en el CSV."""
-        self.__persistencia.guardar(self)
+        self.__auditoria.ejecutar(
+            "PERSISTENCIA", "GUARDAR_RED", "Estado de la red.",
+            lambda: self.__persistencia.guardar(self),
+        )
 
     def cargar(self) -> None:
         """Reconstruye la red desde el CSV."""
-        grafo_cargado = self.__persistencia.cargar()
-        self.__vertices = grafo_cargado.vertices
+        def operacion() -> None:
+            grafo_cargado = self.__persistencia.cargar(self.__auditoria)
+            self.__vertices = grafo_cargado.vertices
+
+        self.__auditoria.ejecutar(
+            "PERSISTENCIA", "CARGAR_RED", "Reconstruccion de la red.", operacion,
+        )
 
     def __buscar_vertice_interno(self, nombre: str) -> VerticeRed | None:
         for vertice in self.__vertices:

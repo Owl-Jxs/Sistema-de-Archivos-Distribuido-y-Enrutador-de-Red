@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ...logic.controller.servidor.servidor import Servidor
+from ...logic.controller.auditoria.auditoria import Auditoria
 
 if TYPE_CHECKING:
     from ...logic.controller.grafo_red.grafoRed import GrafoRed
@@ -78,7 +79,7 @@ class PersistenciaRedCSV:
                         ]
                     )
 
-    def cargar(self) -> GrafoRed:
+    def cargar(self, auditoria: Auditoria) -> GrafoRed:
         from ...logic.controller.grafo_red.grafoRed import GrafoRed
 
         if not self.__ruta_conexiones_csv.exists():
@@ -105,7 +106,7 @@ class PersistenciaRedCSV:
 
             filas = list(lector)
 
-        grafo = GrafoRed(self.__ruta_conexiones_csv)
+        grafo = GrafoRed(self.__ruta_conexiones_csv, auditoria=auditoria)
         filas_conexiones: list[dict[str, str]] = []
 
         for fila in filas:
@@ -150,7 +151,7 @@ class PersistenciaRedCSV:
             ):
                 continue
 
-            grafo.agregar_conexion(origen, destino, latencia)
+            grafo._agregar_conexion(origen, destino, latencia)
 
         return grafo
 
@@ -167,7 +168,7 @@ class PersistenciaRedCSV:
                 f"El id del servidor {nombre} no es un entero: {id_texto}."
             ) from None
 
-        grafo.agregar_servidor(
+        grafo._agregar_servidor(
             Servidor(nombre, id_servidor, direccion_base),
         )
 
