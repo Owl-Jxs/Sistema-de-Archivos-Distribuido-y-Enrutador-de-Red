@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from network_os.logic.controller.servidor.servidor import Servidor
-from network_os.logic.structure.grafo_red.grafoRed import GrafoRed
+from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 from network_os.persistencia.persistencia_red.persistencia_red_csv import (
     PersistenciaRedCSV,
 )

@@ -6,7 +6,7 @@ from pathlib import Path
 from ....persistencia.persistencia_red.persistencia_red_csv import (
     PersistenciaRedCSV,
 )
-from ...controller.servidor.servidor import Servidor
+from ..servidor.servidor import Servidor
 from ...model.conexion.conexion import Conexion
 from ...structure.vertice_red.verticeRed import VerticeRed
 
@@ -127,6 +127,102 @@ class GrafoRed:
         vertice_origen.eliminar_conexion(vertice_destino)
         if vertice_origen is not vertice_destino:
             vertice_destino.eliminar_conexion(vertice_origen)
+
+    def bfs(self, origen: str) -> list[str]:
+        """Devuelve los nombres alcanzables por niveles, en orden de conexion."""
+        vertice_origen = self.buscar_vertice(origen)
+        pendientes = [vertice_origen]
+        visitados = {vertice_origen.servidor.nombre}
+        recorrido: list[str] = []
+        indice = 0
+
+        # El indice permite usar la lista como cola sin desplazar elementos.
+        while indice < len(pendientes):
+            actual = pendientes[indice]
+            indice += 1
+            recorrido.append(actual.servidor.nombre)
+
+            for conexion in actual.conexiones:
+                nombre = conexion.destino.servidor.nombre
+                if nombre not in visitados:
+                    visitados.add(nombre)
+                    pendientes.append(conexion.destino)
+
+        return recorrido
+
+    def dijkstra(
+        self, origen: str,
+    ) -> tuple[dict[str, float], dict[str, str | None]]:
+        """Devuelve distancias y predecesores; los inalcanzables quedan en inf."""
+        vertice_origen = self.buscar_vertice(origen)
+
+        # Conexion permite cambiar la latencia despues de agregar la arista.
+        for vertice in self.__vertices:
+            for conexion in vertice.conexiones:
+                self.__validar_latencia(conexion.latencia_ms)
+
+        distancias = {
+            vertice.servidor.nombre: math.inf for vertice in self.__vertices
+        }
+        anteriores: dict[str, str | None] = {
+            vertice.servidor.nombre: None for vertice in self.__vertices
+        }
+        distancias[vertice_origen.servidor.nombre] = 0
+        visitados: set[str] = set()
+
+        while True:
+            actual = None
+            menor_distancia = math.inf
+            for vertice in self.__vertices:
+                nombre = vertice.servidor.nombre
+                if nombre not in visitados and distancias[nombre] < menor_distancia:
+                    actual = vertice
+                    menor_distancia = distancias[nombre]
+
+            # No quedan vertices pendientes alcanzables desde el origen.
+            if actual is None:
+                break
+
+            nombre_actual = actual.servidor.nombre
+            visitados.add(nombre_actual)
+            for conexion in actual.conexiones:
+                destino = conexion.destino.servidor.nombre
+                if destino in visitados:
+                    continue
+                nueva_distancia = menor_distancia + conexion.latencia_ms
+                if nueva_distancia < distancias[destino]:
+                    distancias[destino] = nueva_distancia
+                    anteriores[destino] = nombre_actual
+
+        return distancias, anteriores
+
+    def ruta_mas_corta(
+        self, origen: str, destino: str,
+    ) -> tuple[list[str], float] | None:
+        """Devuelve (nombres de la ruta, latencia total), o None si no hay ruta."""
+        self.buscar_vertice(origen)
+        nombre_destino = self.buscar_vertice(destino).servidor.nombre
+        distancias, anteriores = self.dijkstra(origen)
+        costo_total = distancias[nombre_destino]
+        if costo_total == math.inf:
+            return None
+
+        ruta: list[str] = []
+        actual: str | None = nombre_destino
+        while actual is not None:
+            ruta.append(actual)
+            actual = anteriores[actual]
+        ruta.reverse()
+        return ruta, costo_total
+
+    def ping_general(self, origen: str) -> dict[str, float | None]:
+        """Latencia minima a cada otro servidor; None indica que es inalcanzable."""
+        distancias, _ = self.dijkstra(origen)
+        return {
+            nombre: distancia if distancia != math.inf else None
+            for nombre, distancia in distancias.items()
+            if nombre != origen.strip()
+        }
 
     def guardar(self) -> None:
         """Guarda los servidores y las conexiones de la red en el CSV."""

@@ -227,6 +227,30 @@ class Carpeta:
 
         return lineas
 
+    def lineas_estructura(self) -> list[str]:
+        """Describe este subarbol con ramas ASCII, sin incluir sus hermanas."""
+        lineas = [self.__nombre_carpeta]
+
+        def recorrer(carpeta: Carpeta, prefijo: str) -> None:
+            hija = carpeta.__primer_subcarpeta
+            if hija is not None or carpeta.__archivos:
+                lineas.append(f"{prefijo}|")
+
+            while hija is not None:
+                lineas.append(f"{prefijo}|-- {hija.__nombre_carpeta}")
+                # La barra continua si quedan hermanas o archivos en el padre.
+                hay_siguiente = (
+                    hija.__siguiente_subcarpeta is not None or carpeta.__archivos
+                )
+                recorrer(hija, prefijo + ("|   " if hay_siguiente else "    "))
+                hija = hija.__siguiente_subcarpeta
+
+            for archivo in carpeta.__archivos:
+                lineas.append(f"{prefijo}|-- {archivo.nombre}")
+
+        recorrer(self, "")
+        return lineas
+
     def buscar_subcarpeta_por_nombre(self, nombre: str) -> Carpeta | None:
         self.__validar_str(nombre)
         nombre_limpio = nombre.strip()

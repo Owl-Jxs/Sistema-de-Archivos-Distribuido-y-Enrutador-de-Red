@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from ...logic.controller.servidor.servidor import Servidor
 
 if TYPE_CHECKING:
-    from ...logic.structure.grafo_red.grafoRed import GrafoRed
+    from ...logic.controller.grafo_red.grafoRed import GrafoRed
 
 
 class PersistenciaRedCSV:
@@ -32,7 +32,7 @@ class PersistenciaRedCSV:
         return self.__ruta_conexiones_csv
 
     def guardar(self, grafo: GrafoRed) -> None:
-        from ...logic.structure.grafo_red.grafoRed import GrafoRed
+        from ...logic.controller.grafo_red.grafoRed import GrafoRed
 
         if not isinstance(grafo, GrafoRed):
             raise TypeError("El grafo debe ser una instancia de GrafoRed.")
@@ -79,7 +79,7 @@ class PersistenciaRedCSV:
                     )
 
     def cargar(self) -> GrafoRed:
-        from ...logic.structure.grafo_red.grafoRed import GrafoRed
+        from ...logic.controller.grafo_red.grafoRed import GrafoRed
 
         if not self.__ruta_conexiones_csv.exists():
             raise FileNotFoundError(

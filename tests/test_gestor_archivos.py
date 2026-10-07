@@ -208,5 +208,73 @@ class GestorArchivosTests(unittest.TestCase):
         )
 
 
+class ImpresionArbolTests(unittest.TestCase):
+    def test_repositorio_vacio_muestra_solo_la_raiz(self) -> None:
+        gestor = GestorArchivos("raiz")
+        self.assertEqual(["raiz"], gestor.raiz.lineas_estructura())
+        salida = io.StringIO()
+        with redirect_stdout(salida):
+            self.assertIsNone(gestor.imprimir_arbol())
+        self.assertEqual("raiz\n", salida.getvalue())
+
+    def test_archivos_sin_subcarpetas(self) -> None:
+        gestor = GestorArchivos("raiz")
+        gestor.crear_nuevo_archivo("uno.txt")
+        gestor.crear_nuevo_archivo("dos.txt")
+        self.assertEqual(["raiz", "|", "|-- uno.txt", "|-- dos.txt"],
+                         gestor.raiz.lineas_estructura())
+
+    def test_hermanas_vacias_con_primer_hijo_y_siguiente_hermana(self) -> None:
+        segunda = Carpeta(2, "segunda")
+        primera = Carpeta(1, "primera", siguiente_subcarpeta=segunda)
+        raiz = Carpeta(0, "raiz", primer_subcarpeta=primera)
+        self.assertEqual(["raiz", "|", "|-- primera", "|-- segunda"],
+                         raiz.lineas_estructura())
+        self.assertEqual(["primera"], primera.lineas_estructura())
+        self.assertEqual([primera, segunda], raiz.listar_subcarpetas())
+
+    def test_niveles_archivos_y_hermanas_sin_modificar_el_arbol(self) -> None:
+        gestor = GestorArchivos("raiz")
+        juegos = gestor.crear_nueva_subcarpeta("juegos")
+        documentos = gestor.crear_nueva_subcarpeta("documentos")
+        readme = gestor.crear_nuevo_archivo("Readme.txt", "contenido")
+        gestor.bajar_a_subcarpeta("juegos")
+        lol = gestor.crear_nueva_subcarpeta("LoL")
+        minecraft = gestor.crear_nueva_subcarpeta("Minecraft")
+        gestor.bajar_a_subcarpeta("Minecraft")
+        config = gestor.crear_nuevo_archivo("config.txt")
+        gestor.volver_a_raiz()
+        gestor.bajar_a_subcarpeta("documentos")
+        tarea = gestor.crear_nuevo_archivo("tarea.pdf")
+
+        carpetas = (gestor.raiz, juegos, documentos, lol, minecraft)
+        def estado_arbol():
+            return [
+                (carpeta.id, carpeta.nombre_carpeta, carpeta.direccion_carpeta,
+                 carpeta.carpeta_padre, tuple(carpeta.listar_subcarpetas()),
+                 tuple(carpeta.listar_archivos()))
+                for carpeta in carpetas
+            ]
+
+        estado_anterior = estado_arbol()
+        archivos_antes = [vars(archivo).copy() for archivo in (readme, config, tarea)]
+        esperadas = [
+            "raiz", "|", "|-- juegos", "|   |", "|   |-- LoL",
+            "|   |-- Minecraft", "|       |", "|       |-- config.txt",
+            "|-- documentos", "|   |", "|   |-- tarea.pdf", "|-- Readme.txt",
+        ]
+        salida = io.StringIO()
+        with redirect_stdout(salida):
+            self.assertEqual(esperadas, gestor.raiz.lineas_estructura())
+        self.assertEqual("", salida.getvalue())
+        with redirect_stdout(salida):
+            gestor.imprimir_arbol()
+        self.assertEqual(esperadas, salida.getvalue().splitlines())
+        self.assertIs(documentos, gestor.carpeta_actual)
+        self.assertEqual(estado_anterior, estado_arbol())
+        self.assertEqual(archivos_antes,
+                         [vars(archivo).copy() for archivo in (readme, config, tarea)])
+
+
 if __name__ == "__main__":
     unittest.main()
