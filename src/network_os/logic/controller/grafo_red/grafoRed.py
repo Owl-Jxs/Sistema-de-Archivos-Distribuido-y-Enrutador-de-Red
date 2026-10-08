@@ -312,6 +312,66 @@ class GrafoRed:
         ruta.reverse()
         return ruta, costo_total
 
+    def enviar_paquete(
+        self,
+        origen: str,
+        destino: str,
+    ) -> tuple[list[str], float] | None:
+        """Envia un paquete siguiendo la ruta de menor latencia."""
+
+        detalle = f"Origen: {origen}; destino: {destino}."
+
+        def describir(
+            resultado: tuple[list[str], float] | None,
+        ) -> tuple[str, str]:
+            if resultado is None:
+                return "FALLIDO", f"{detalle} No existe una ruta."
+
+            ruta, costo = resultado
+            recorrido = " -> ".join(ruta)
+
+            return (
+                "EXITOSO",
+                f"{detalle} Paquete enviado por {recorrido}; "
+                f"costo total: {costo} ms.",
+            )
+
+        return self.__auditoria.ejecutar(
+            "RED",
+            "ENVIAR_PAQUETE",
+            detalle,
+            lambda: self.__enviar_paquete(origen, destino),
+            describir,
+        )
+
+    def __enviar_paquete(
+        self,
+        origen: str,
+        destino: str,
+    ) -> tuple[list[str], float] | None:
+        resultado = self.__ruta_mas_corta(origen, destino)
+
+        if resultado is None:
+            print(
+                f"No se puede enviar el paquete: "
+                f"no existe una ruta entre {origen} y {destino}."
+            )
+            return None
+
+        ruta, costo = resultado
+
+        print("\nEnviando paquete...")
+        
+        for indice in range(len(ruta) - 1):
+            actual = ruta[indice]
+            siguiente = ruta[indice + 1]
+
+            print(f"Salto {indice + 1}: {actual} -> {siguiente}")
+
+        print(f"Costo total: {costo} ms.")
+
+        return ruta, costo
+
     def ping_general(self, origen: str) -> dict[str, float | None]:
         """Latencia minima a cada otro servidor; None indica que es inalcanzable."""
         def describir(resultado: dict[str, float | None]) -> tuple[str, str]:
@@ -334,6 +394,18 @@ class GrafoRed:
             for nombre, distancia in distancias.items()
             if nombre != origen.strip()
         }
+
+    def servidores_aislados(self) -> list[str]:
+        """Devuelve los nombres de los servidores sin conexiones."""
+
+        aislados = []
+
+        for vertice in self.__vertices:
+            if vertice.esta_aislado():
+                aislados.append(vertice.servidor.nombre)
+
+        return aislados
+        
 
     def guardar(self) -> None:
         """Guarda los servidores y las conexiones de la red en el CSV."""
