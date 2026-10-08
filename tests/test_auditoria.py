@@ -3,8 +3,8 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from network_os.logic.controller.AuditoriaServidor.auditoria_servidor import (
-    AuditoriaServidor,
+from network_os.logic.controller.auditoria.auditoria import (
+    Auditoria,
 )
 from network_os.logic.model.registro_auditoria.registro_auditoria import (
     RegistroAuditoria,
@@ -104,12 +104,54 @@ class AuditoriaTests(unittest.TestCase):
             self.assertEqual(registros[1:], persistencia.consultar_ultimos(2))
             self.assertEqual([], persistencia.consultar_ultimos(0))
 
-    def test_auditoria_servidor_crea_y_consulta_registro(self) -> None:
+    def test_conserva_y_amplia_log_antiguo_sin_origen(self) -> None:
+        with tempfile.TemporaryDirectory() as directorio:
+            ruta = Path(directorio) / "auditoria.csv"
+            ruta.write_text(
+                "fecha_hora,categoria,accion,resultado,detalle\n"
+                "2026-09-27T12:30:00,USUARIOS,AGREGAR_USUARIO,EXITOSO,Usuario ana\n",
+                encoding="utf-8",
+            )
+            historial = ruta.read_bytes()
+            auditoria = Auditoria("SERVIDOR:principal (1)", PersistenciaAuditoriaCSV(ruta))
+
+            auditoria.registrar("ARCHIVOS", "CREAR_ARCHIVO", "EXITOSO", "Archivo tarea")
+
+            self.assertTrue(ruta.read_bytes().startswith(historial))
+            registros = auditoria.consultar_todo()
+            self.assertEqual(2, len(registros))
+            self.assertEqual("DESCONOCIDO", registros[0].origen)
+            self.assertEqual("Usuario ana", registros[0].detalle)
+            self.assertEqual(auditoria.origen, registros[1].origen)
+            self.assertEqual("CREAR_ARCHIVO", registros[1].accion)
+            self.assertEqual("Archivo tarea", registros[1].detalle)
+
+    def test_append_respeta_orden_del_encabezado_existente(self) -> None:
+        with tempfile.TemporaryDirectory() as directorio:
+            ruta = Path(directorio) / "network_audit_log.txt"
+            ruta.write_text(
+                "fecha_hora,origen,categoria,accion,resultado,detalle\n"
+                "2026-09-27T12:30:00,RED,RED,AGREGAR_SERVIDOR,EXITOSO,Servidor principal\n",
+                encoding="utf-8",
+            )
+            historial = ruta.read_bytes()
+            auditoria = Auditoria("RED", PersistenciaAuditoriaCSV(ruta))
+
+            auditoria.registrar("RED", "PING_GENERAL", "EXITOSO", "Origen principal")
+
+            self.assertTrue(ruta.read_bytes().startswith(historial))
+            registros = auditoria.consultar_todo()
+            self.assertEqual(2, len(registros))
+            self.assertEqual("RED", registros[1].origen)
+            self.assertEqual("PING_GENERAL", registros[1].accion)
+            self.assertEqual("Origen principal", registros[1].detalle)
+
+    def test_auditoria_crea_y_consulta_registro(self) -> None:
         with tempfile.TemporaryDirectory() as directorio:
             persistencia = PersistenciaAuditoriaCSV(
                 Path(directorio) / "auditoria.csv"
             )
-            auditoria = AuditoriaServidor("servidor-1", persistencia)
+            auditoria = Auditoria("servidor-1", persistencia)
 
             auditoria.registrar(
                 "usuarios", "autenticar", "exito", "Acceso concedido"
@@ -117,6 +159,7 @@ class AuditoriaTests(unittest.TestCase):
 
             registros = auditoria.consultar_todo()
             self.assertEqual(1, len(registros))
+            self.assertEqual("servidor-1", registros[0].origen)
             self.assertEqual("usuarios", registros[0].categoria)
             self.assertEqual("autenticar", registros[0].accion)
             self.assertIsInstance(registros[0].fecha_hora, datetime)

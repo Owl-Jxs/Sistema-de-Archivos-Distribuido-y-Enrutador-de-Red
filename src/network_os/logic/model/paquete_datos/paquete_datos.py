@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from zoneinfo import ZoneInfo
+
+from ..fecha_hora import fecha_hora_actual_costa_rica
 
 
 def _fecha_actual() -> datetime:
-    return datetime.now(ZoneInfo("America/Costa_Rica"))
+    return fecha_hora_actual_costa_rica()
 
 
 @dataclass(frozen=True, slots=True)

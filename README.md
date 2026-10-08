@@ -1,54 +1,78 @@
 # Network OS - Simulador de Sistema Operativo de Red
 
-**Proyecto de Investigación Aplicada #2**  
-**EIF207 - Estructuras de Datos**  
+**Proyecto de Investigación Aplicada #2** · **EIF207 - Estructuras de Datos**
 Universidad Nacional, Sección Regional Central Occidente
 
----
+## ¿Qué hace?
 
-## 📌 Objetivo del proyecto
+Simula una red descentralizada de servidores interconectados. Cuando esté
+terminado:
 
-Construir el núcleo lógico de un **Network OS**: una simulación de red descentralizada donde múltiples servidores están interconectados.
+- Cada servidor administra su **sistema de archivos** como un árbol de carpetas
+  y archivos, con búsqueda recursiva y borrado en cascada.
+- Cada servidor **autentica usuarios en tiempo O(1)** con una tabla hash
+  construida desde cero (función de dispersión propia y manejo de colisiones).
+- Los servidores se **enrutan paquetes** por un grafo ponderado: Dijkstra para
+  la ruta más corta y BFS/DFS para detectar red aislada o fragmentada.
+- **Toda acción queda auditada**: cada servidor escribe su propio log y la red
+  escribe `network_audit_log.txt` (fecha, origen, acción, resultado, detalle).
+- La interacción ocurre por **menús de consola**.
 
-Cada servidor debe:
+El código está separado en `logic` (reglas de negocio), `persistencia` (CSV) y `consola`
+(menús).
 
-- **Administrar su propio sistema de archivos interno** mediante un árbol (jerarquía de carpetas y archivos, con búsqueda recursiva y eliminación en cascada).
-- **Autenticar usuarios en tiempo constante `O(1)`** mediante una tabla hash construida desde cero (función de dispersión propia y manejo de colisiones).
-- **Enrutar paquetes de datos entre servidores** usando un grafo ponderado, aplicando **Dijkstra** para encontrar la ruta más corta y **BFS/DFS** para diagnosticar si la red está completamente conectada o si hay servidores aislados.
-- **Registrar toda acción relevante** en un archivo CSV de auditoría (`network_audit_log.csv`), con fecha, hora y detalle de la transacción.
-
-> El proyecto es de naturaleza **evolutiva**: cada semana se integrarán nuevas reglas de negocio publicadas por el equipo docente (*Sprints*), por lo que el código debe mantenerse **modular y ordenado** desde el inicio.
-
----
-
-## 🗂️ Estructura del proyecto
+## Estructura
 
 ```text
 network-os/
-├── src/
-│   └── network_os/
-│       ├── main.py                 ← punto de entrada, menú interactivo
-│       └── logic/
-│           ├── controller/
-│           │   ├── auditoria_servidor.py
-│           │   └── gestor_archivos.py
-│           ├── model/
-│           │   ├── nodo_hash/
-│           │   │   └── nodo_hash.py
-│           │   └── registro_auditoria/
-│           │       └── registro_auditoria.py
-│           └── structure/
-│               ├── carpeta/
-│               │   └── carpeta.py
-│               ├── hash_table/
-│               │   └── hash_map.py
-│               └── persistencia_auditoria/
-│                   └── persistencia_auditoria_csv.py
-├── tests/
-│   ├── test_auditoria.py
-│   ├── test_gestor_archivos.py
-│   └── test_hash_map.py
-├── logs/                           ← aquí se genera network_audit_log.csv
-├── .gitignore
-└── README.md
+├── run.py                        ← punto de entrada (python run.py)
+├── pyproject.toml                ← configura pytest para buscar en src/
+├── src/network_os/
+│   ├── main.py                   ← NetworkOS.ejecutar_menu()
+│   ├── consola/                  ← menús de consola (MenuConsola)
+│   ├── logic/
+│   │   ├── controller/           ← auditoria · gestor_archivos · grafo_red · servidor
+│   │   ├── model/                ← archivo · conexion · paquete_datos · registros
+│   │   └── structure/            ← carpeta · hash_table · vertice_red
+│   └── persistencia/             ← CSV: red · servidores · usuarios · árbol · auditoría
+└── tests/                        ← pruebas unitarias
 ```
+
+## ▶️ Cómo ejecutar el programa (VS Code)
+
+1. Abrir la carpeta del proyecto en VS Code.
+2. Terminal integrada con <kbd>Ctrl</kbd> + <kbd>`</kbd> y:
+
+```bash
+python run.py
+```
+
+También funciona el botón ▶ de VS Code con `run.py` abierto.
+Alternativa sin launcher:
+
+```bash
+set PYTHONPATH=src && python -m network_os.main   # Windows cmd
+$env:PYTHONPATH="src"; python -m network_os.main  # PowerShell
+```
+
+## 🧪 Cómo ejecutar los tests
+
+Requisito: Python 3.10 o superior.
+
+```bash
+pip install pytest
+python -m pytest tests
+```
+
+El `pyproject.toml` le indica a pytest que busque los módulos en `src/`, así
+que no hace falta configurar nada más.
+
+Alternativa sin pytest (librería estándar):
+
+```bash
+set PYTHONPATH=src
+python -m unittest discover -s tests
+```
+
+## Promps usados durante el desarrollo:
+

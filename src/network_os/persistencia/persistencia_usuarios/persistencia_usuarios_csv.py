@@ -14,8 +14,12 @@ class PersistenciaUsuariosCSV:
         #crea las carpetas necesarias si todavia no existen
         self.ruta_csv.parent.mkdir(parents=True, exist_ok=True)
 
+        #escribe primero en un archivo temporal y luego lo reemplaza,
+        #asi un corte a mitad de escritura no deja el CSV a medias
+        ruta_temporal = self.ruta_csv.with_name(self.ruta_csv.name + ".tmp")
+
         #abre el archivo en modo escritura, si ya existe, lo reemplaza
-        with self.ruta_csv.open("w", newline="", encoding="utf-8") as archivo:
+        with ruta_temporal.open("w", newline="", encoding="utf-8") as archivo:
             escritor = csv.writer(archivo)
 
             #escribe los nombres de las columnas
@@ -26,6 +30,8 @@ class PersistenciaUsuariosCSV:
                 clave_json = json.dumps(clave, ensure_ascii=False)
                 valor_json = json.dumps(valor, ensure_ascii=False, default=self._convertir_objeto)
                 escritor.writerow([clave_json, valor_json])
+
+        ruta_temporal.replace(self.ruta_csv)
 
     def cargar(self):
         usuarios = HashMap()
@@ -38,10 +44,20 @@ class PersistenciaUsuariosCSV:
         with self.ruta_csv.open("r", newline="", encoding="utf-8") as archivo:
             lector = csv.DictReader(archivo)
 
+            if lector.fieldnames is None:
+                raise ValueError(
+                    f"El CSV de usuarios esta vacio: {self.ruta_csv}"
+                )
+
             for fila in lector:
-                #convierte los textos JSON a sus tipos de dato originales
-                clave = json.loads(fila["clave"])
-                valor = json.loads(fila["valor"])
+                try:
+                    #convierte los textos JSON a sus tipos de dato originales
+                    clave = json.loads(fila["clave"])
+                    valor = json.loads(fila["valor"])
+                except (KeyError, TypeError, json.JSONDecodeError) as error:
+                    raise ValueError(
+                        f"Fila invalida en el CSV de usuarios: {fila}"
+                    ) from error
 
                 #agrega la pareja al HashMap reconstruido
                 usuarios.insertar(clave, valor)

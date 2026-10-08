@@ -214,6 +214,43 @@ class Carpeta:
     def listar_elementos(self) -> list[Carpeta | Archivo]:
         return [*self.listar_subcarpetas(), *self.__archivos]
 
+    def lineas_arbol(self, nivel: int = 0) -> list[str]:
+        """Describe el subarbol en lineas indentadas un nivel por carpetas."""
+        sangria = "    " * nivel
+        lineas = [f"{sangria}{self.__nombre_carpeta}/"]
+
+        for archivo in self.__archivos:
+            lineas.append(f"{sangria}    {archivo.nombre}")
+
+        for subcarpeta in self.listar_subcarpetas():
+            lineas.extend(subcarpeta.lineas_arbol(nivel + 1))
+
+        return lineas
+
+    def lineas_estructura(self) -> list[str]:
+        """Describe este subarbol con ramas ASCII, sin incluir sus hermanas."""
+        lineas = [self.__nombre_carpeta]
+
+        def recorrer(carpeta: Carpeta, prefijo: str) -> None:
+            hija = carpeta.__primer_subcarpeta
+            if hija is not None or carpeta.__archivos:
+                lineas.append(f"{prefijo}|")
+
+            while hija is not None:
+                lineas.append(f"{prefijo}|-- {hija.__nombre_carpeta}")
+                # La barra continua si quedan hermanas o archivos en el padre.
+                hay_siguiente = (
+                    hija.__siguiente_subcarpeta is not None or carpeta.__archivos
+                )
+                recorrer(hija, prefijo + ("|   " if hay_siguiente else "    "))
+                hija = hija.__siguiente_subcarpeta
+
+            for archivo in carpeta.__archivos:
+                lineas.append(f"{prefijo}|-- {archivo.nombre}")
+
+        recorrer(self, "")
+        return lineas
+
     def buscar_subcarpeta_por_nombre(self, nombre: str) -> Carpeta | None:
         self.__validar_str(nombre)
         nombre_limpio = nombre.strip()
@@ -338,6 +375,21 @@ class Carpeta:
         for archivo in self.__archivos:
             if archivo.nombre == nombre_limpio:
                 return archivo
+        return None
+
+    def buscar_archivo_recursivo(self, nombre: str) -> Archivo | None:
+        """Busca un archivo navegando todo el subarbol en profundidad."""
+        self.__validar_str(nombre)
+        nombre_limpio = nombre.strip()
+
+        encontrado = self.buscar_archivo_por_nombre(nombre_limpio)
+        if encontrado is not None:
+            return encontrado
+
+        for subcarpeta in self.listar_subcarpetas():
+            encontrado = subcarpeta.buscar_archivo_recursivo(nombre_limpio)
+            if encontrado is not None:
+                return encontrado
         return None
 
     def buscar_archivo_por_id(self, id: int) -> Archivo | None:

@@ -41,12 +41,15 @@ class HashMap:
             for byte in clave.encode("utf-8"):
                 valor_hash = ((valor_hash * 31) + byte) & 0xFFFFFFFFFFFFFFFF
         else:
-            # Para claves genericas se respeta su contrato de igualdad/hash y se
-            # mezclan sus bits antes de elegir la cubeta.
+            # Para claves genericas se respeta su contrato de igualdad/hash.
             valor_hash = hash(clave) & 0xFFFFFFFFFFFFFFFF
-            valor_hash ^= valor_hash >> 33
-            valor_hash = (valor_hash * 0xFF51AFD7ED558CCD) & 0xFFFFFFFFFFFFFFFF
-            valor_hash ^= valor_hash >> 33
+
+        # Mezcla final de bits (avalanche): sin ella, 31 == 1 (mod 2^k * 5)
+        # hace que permutaciones de los mismos caracteres caigan en la misma
+        # cubeta y la tabla degenere a O(n) con pocos usuarios.
+        valor_hash ^= valor_hash >> 33
+        valor_hash = (valor_hash * 0xFF51AFD7ED558CCD) & 0xFFFFFFFFFFFFFFFF
+        valor_hash ^= valor_hash >> 33
 
         return valor_hash % self.capacidad
 
