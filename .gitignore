@@ -42,6 +42,7 @@ servidores/
 *.tmp
 
 # Archivos generados que no pertenecen al proyecto
+/network_audit_log.txt
 /.codex-build/
 /.codex-finalizer/
 /output/tipos-join-sql-*.pptx
