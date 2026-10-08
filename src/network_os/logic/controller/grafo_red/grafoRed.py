@@ -395,6 +395,8 @@ class GrafoRed:
             if nombre != origen.strip()
         }
 
+
+
     def servidores_aislados(self) -> list[str]:
         """Devuelve los nombres de los servidores sin conexiones."""
 
