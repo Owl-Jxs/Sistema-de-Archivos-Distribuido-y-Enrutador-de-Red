@@ -407,7 +407,29 @@ class GrafoRed:
                 aislados.append(vertice.servidor.nombre)
 
         return aislados
-        
+
+
+    def eliminar_servidor(self, nombre: str) -> None:
+        """Elimina un servidor y todas sus conexiones."""
+
+        self.__auditoria.ejecutar(
+            "RED",
+            "ELIMINAR_SERVIDOR",
+            f"Servidor: {nombre}.",
+            lambda: self.__eliminar_servidor(nombre),
+        )
+
+    def __eliminar_servidor(self, nombre: str) -> None:
+        self.__validar_nombre(nombre)
+
+        vertice_eliminar = self.buscar_vertice(nombre)
+
+        for vertice in self.__vertices:
+            if vertice is not vertice_eliminar:
+                vertice.eliminar_conexion(vertice_eliminar)
+
+        self.__vertices.remove(vertice_eliminar)    
+
 
     def guardar(self) -> None:
         """Guarda los servidores y las conexiones de la red en el CSV."""
