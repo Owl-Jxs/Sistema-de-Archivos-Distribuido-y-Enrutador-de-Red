@@ -168,6 +168,47 @@ class GrafoRed:
         if vertice_origen is not vertice_destino:
             vertice_destino.eliminar_conexion(vertice_origen)
 
+
+    def actualizar_latencia(
+        self,
+        origen: str,
+        destino: str,
+        latencia: float,
+    ) -> None:
+        """Actualiza la latencia de una conexion bidireccional."""
+        self.__auditoria.ejecutar(
+            "RED",
+            "ACTUALIZAR_LATENCIA",
+            f"Origen: {origen}; destino: {destino}; nueva latencia: {latencia} ms.",
+            lambda: self.__actualizar_latencia(origen, destino, latencia),
+        )
+
+    def __actualizar_latencia(
+        self,
+        origen: str,
+        destino: str,
+        latencia: float,
+    ) -> None:
+        self.__validar_nombre(origen)
+        self.__validar_nombre(destino)
+        self.__validar_latencia(latencia)
+
+        vertice_origen = self.buscar_vertice(origen)
+        vertice_destino = self.buscar_vertice(destino)
+
+        conexion_origen = vertice_origen.buscar_conexion(vertice_destino)
+        conexion_destino = vertice_destino.buscar_conexion(vertice_origen)
+
+        if conexion_origen is None or conexion_destino is None:
+            raise ValueError(
+                f"No existe una conexion entre {origen} y {destino}."
+            )
+
+        conexion_origen.actualizar_latencia(latencia)
+        conexion_destino.actualizar_latencia(latencia)
+
+
+
     def bfs(self, origen: str) -> list[str]:
         """Devuelve los nombres alcanzables por niveles, en orden de conexion."""
         vertice_origen = self.buscar_vertice(origen)
