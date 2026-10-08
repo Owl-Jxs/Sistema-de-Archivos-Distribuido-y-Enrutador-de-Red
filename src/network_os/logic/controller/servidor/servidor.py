@@ -119,6 +119,10 @@ class Servidor:
         if not any(caracter.isdigit() for caracter in contrasena):
             raise ValueError("La contrasena debe contener al menos un numero.")
 
+    def usuarios_vacios(self) -> bool:
+        """True si el servidor todavia no tiene ningun usuario registrado."""
+        return self.__credenciales_usuarios.esta_vacio()
+
     def agregar_usuario(self, nombre: str, contrasena: str) -> None:
         def operacion() -> None:
             nombre_limpio = self.__validar_nombre_usuario(nombre)
