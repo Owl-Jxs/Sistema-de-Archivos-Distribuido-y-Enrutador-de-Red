@@ -208,12 +208,38 @@ class MenuConsola:
         """
         print("Pendiente: enviar paquete.")
 
+    
     def menu_auditoria(self) -> None:
-        """
-        1. Leer y mostrar registros
-        0. Volver
+        """Consulta y muestra los registros de auditoría de la red."""
+        while True:
+            print("\n=== MENU DE AUDITORIA ===")
+            print("1. Leer y mostrar registros")
+            print("0. Volver al menu principal")
 
-        Archivo: network_audit_log.txt. Logica: grafo.consultar_auditoria()
-        (fecha, origen, categoria, accion, resultado, detalle).
-        """
-        print("Pendiente: menu de auditoria.")
+            opcion = self.leer_option(["0", "1"])
+
+            if opcion == "0":
+                return
+
+            try:
+                registros = self.__grafo.consultar_auditoria()
+
+                if not registros:
+                    print("\nNo hay registros de auditoria.")
+                    continue
+
+                print(f"\n=== REGISTROS DE AUDITORIA ({len(registros)}) ===")
+
+                for indice, registro in enumerate(registros, start=1):
+                    print(f"\n--- Registro {indice} ---")
+                    print(f"Fecha y hora: {registro.fecha_hora}")
+                    print(f"Origen:       {registro.origen}")
+                    print(f"Categoria:    {registro.categoria}")
+                    print(f"Accion:       {registro.accion}")
+                    print(f"Resultado:    {registro.resultado}")
+                    print(f"Detalle:      {registro.detalle}")
+
+                self.pausar()
+
+            except (OSError, ValueError, TypeError) as error:
+                print(f"No se pudo consultar la auditoria: {error}")
