@@ -131,24 +131,174 @@ class MenuConsola:
     # Este encabezado se borra cuando no quede ninguno pendiente.
     # Los docstrings de abajo son la especificación; no se borran.
 
+    
     def menu_red(self) -> None:
-        """
-        1. Listar servidores y conexiones
-        2. Agregar / eliminar servidor   # PENDIENTE: GrafoRed.eliminar_servidor(nombre)
-        3. Agregar / eliminar conexion
-        4. Cambiar latencia              # PENDIENTE: GrafoRed.actualizar_latencia(origen, destino, latencia)
-        5. Ping general
-        0. Volver
+        """Administra servidores, conexiones, latencias y diagnosticos de red."""
+        while True:
+            print("\n=== MENU DE RED ===")
+            print("1. Listar servidores y conexiones")
+            print("2. Agregar / eliminar servidor")
+            print("3. Agregar / eliminar conexion")
+            print("4. Cambiar latencia de una conexion")
+            print("5. Ejecutar ping general")
+            print("0. Volver al menu principal")
 
-        Logica: grafo.vertices, grafo.agregar_servidor(Servidor(nombre, id, "datos")),
-        grafo.agregar_conexion(o, d, ms), grafo.eliminar_conexion(o, d),
-        grafo.ping_general(origen), grafo.guardar(). Cada operacion delega en
-        el grafo; 0 hace return.
+            opcion = self.leer_option(["0", "1", "2", "3", "4", "5"])
 
-        La base "datos" deja cada servidor en datos/servidores/<id>/ y el CSV
-        de la red al lado, en datos/red_conexiones.csv (default de GrafoRed).
-        """
-        print("Pendiente: menu de red.")
+            if opcion == "0":
+                return
+
+            try:
+                if opcion == "1":
+                    self.__listar_red()
+
+                elif opcion == "2":
+                    self.__menu_servidores_red()
+
+                elif opcion == "3":
+                    self.__menu_conexiones_red()
+
+                elif opcion == "4":
+                    origen = input("Servidor de origen: ").strip()
+                    destino = input("Servidor de destino: ").strip()
+                    latencia = float(input("Nueva latencia en ms: ").strip())
+
+                    self.__grafo.actualizar_latencia(
+                        origen, destino, latencia
+                    )
+                    self.__grafo.guardar()
+                    print("Latencia actualizada correctamente.")
+
+                elif opcion == "5":
+                    origen = input("Servidor desde el que realizar el ping: ").strip()
+                    resultados = self.__grafo.ping_general(origen)
+
+                    print(f"\n=== PING GENERAL DESDE {origen} ===")
+                    if not resultados:
+                        print("No hay otros servidores en la red.")
+                    else:
+                        for destino, latencia in resultados.items():
+                            if latencia is None:
+                                print(f"{destino}: inalcanzable")
+                            else:
+                                print(f"{destino}: {latencia} ms")
+
+                if opcion in ["1", "2", "3", "4", "5"]:
+                    self.pausar()
+
+            except (ValueError, TypeError, OSError) as error:
+                print(f"\nNo se pudo completar la operacion: {error}")
+                self.pausar()
+
+    def __listar_red(self) -> None:
+        """Muestra todos los servidores y las conexiones sin duplicarlas."""
+        vertices = self.__grafo.vertices
+
+        if not vertices:
+            print("\nNo hay servidores registrados en la red.")
+            return
+
+        print("\n=== SERVIDORES ===")
+        for vertice in vertices:
+            servidor = vertice.servidor
+            print(f"ID: {servidor.id} | Nombre: {servidor.nombre}")
+
+        print("\n=== CONEXIONES ===")
+        conexiones_mostradas: set[tuple[str, str]] = set()
+
+        for vertice in vertices:
+            origen = vertice.servidor.nombre
+
+            for conexion in vertice.conexiones:
+                destino = conexion.destino.servidor.nombre
+                identificador = tuple(sorted((origen, destino)))
+
+                if identificador in conexiones_mostradas:
+                    continue
+
+                conexiones_mostradas.add(identificador)
+                print(
+                    f"{origen} <-> {destino} | "
+                    f"Latencia: {conexion.latencia_ms} ms"
+                )
+
+        if not conexiones_mostradas:
+            print("No hay conexiones registradas.")
+
+    def __menu_servidores_red(self) -> None:
+        """Permite agregar o eliminar servidores."""
+        print("\n=== ADMINISTRAR SERVIDORES ===")
+        print("1. Agregar servidor")
+        print("2. Eliminar servidor")
+        print("0. Cancelar")
+
+        opcion = self.leer_option(["0", "1", "2"])
+
+        if opcion == "0":
+            return
+
+        if opcion == "1":
+            nombre = input("Nombre del nuevo servidor: ").strip()
+
+            if not nombre:
+                raise ValueError("El nombre no puede estar vacio.")
+
+            ids = [
+                vertice.servidor.id
+                for vertice in self.__grafo.vertices
+            ]
+            nuevo_id = max(ids, default=-1) + 1
+
+            servidor = Servidor(nombre, nuevo_id, "datos")
+            self.__grafo.agregar_servidor(servidor)
+            self.__grafo.guardar()
+
+            print(
+                f"Servidor '{nombre}' creado con ID {nuevo_id}."
+            )
+
+        elif opcion == "2":
+            nombre = input("Nombre del servidor que desea eliminar: ").strip()
+            self.__grafo.eliminar_servidor(nombre)
+            self.__grafo.guardar()
+
+            print(f"Servidor '{nombre}' eliminado correctamente.")
+
+    def __menu_conexiones_red(self) -> None:
+        """Permite agregar o eliminar conexiones entre servidores."""
+        print("\n=== ADMINISTRAR CONEXIONES ===")
+        print("1. Agregar conexion")
+        print("2. Eliminar conexion")
+        print("0. Cancelar")
+
+        opcion = self.leer_option(["0", "1", "2"])
+
+        if opcion == "0":
+            return
+
+        origen = input("Servidor de origen: ").strip()
+        destino = input("Servidor de destino: ").strip()
+
+        if opcion == "1":
+            latencia = float(input("Latencia en ms: ").strip())
+
+            self.__grafo.agregar_conexion(
+                origen, destino, latencia
+            )
+            self.__grafo.guardar()
+
+            print(
+                f"Conexion entre '{origen}' y '{destino}' creada."
+            )
+
+        elif opcion == "2":
+            self.__grafo.eliminar_conexion(origen, destino)
+            self.__grafo.guardar()
+
+            print(
+                f"Conexion entre '{origen}' y '{destino}' eliminada."
+            )
+
 
     def menu_servidor(self) -> None:
         """1. Archivos y carpetas
