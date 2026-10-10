@@ -28,8 +28,16 @@ network-os/
 ├── run.py                        ← punto de entrada (python run.py)
 ├── pyproject.toml                ← configura pytest para buscar en src/
 ├── src/network_os/
-│   ├── main.py                   ← NetworkOS.ejecutar_menu()
-│   ├── consola/                  ← menús de consola (MenuConsola)
+│   ├── main.py                   ← main(): inicialización y menú principal
+│   ├── consola/                  ← menús separados por responsabilidad
+│   │   ├── principal/
+│   │   │   └── menu_consola.py   ← MenuConsola: principal, sesión y auditoría general
+│   │   ├── entrada.py            ← lectura de opciones y pausas
+│   │   ├── red/menu_red.py       ← MenuRed: administración y diagnóstico de la red
+│   │   └── servidor/
+│   │       ├── menu_servidor.py  ← MenuServidor: archivos, usuarios, envío y auditoría local
+│   │       ├── menu_archivos.py  ← MenuArchivos: operaciones del repositorio
+│   │       └── usuarios_locales.py ← gestión de usuarios existente
 │   ├── logic/
 │   │   ├── controller/           ← auditoria · gestor_archivos · grafo_red · servidor
 │   │   ├── model/                ← archivo · conexion · paquete_datos · registros
@@ -54,6 +62,29 @@ Alternativa sin launcher:
 set PYTHONPATH=src && python -m network_os.main   # Windows cmd
 $env:PYTHONPATH="src"; python -m network_os.main  # PowerShell
 ```
+
+## Menús y envío de paquetes
+
+Los submenús usan bucles y la opción `0` vuelve al menú que los abrió. Las
+contraseñas se leen con `getpass`. El primer usuario de un servidor vacío se
+crea durante el acceso, conservando el flujo actual.
+
+La opción `3` del menú principal consulta la auditoría de la red en
+`network_audit_log.txt`. La opción `4` del menú del servidor permite consultar
+sus registros locales en `servidores/<nombre>_<id>/auditoria.csv`, mediante
+`Servidor.consultar_auditoria()`. Cada consulta lee exclusivamente su archivo
+y no agrega eventos ni combina los registros de otros servidores.
+
+El menú de archivos lista el contenido directo, navega, crea carpetas y archivos,
+busca archivos desde la raíz, imprime el árbol y confirma los borrados en cascada.
+Las creaciones y eliminaciones se guardan mediante `Servidor.guardar_estado()`;
+la auditoría permanece en los módulos lógicos.
+
+`GrafoRed.enviar_paquete(origen, destino)` actualmente simula el recorrido y muestra
+saltos y costo. El menú pide destino y contenido y prepara un `PaqueteDatos`, pero
+informa que el contenido no se ha entregado. En `servidor/menu_servidor.py` queda
+comentada la integración para cuando el grafo admita `PaqueteDatos` y devuelva
+`ResultadoEnvio`. Los algoritmos y la entrega de contenido siguen en sus módulos.
 
 ## 🧪 Cómo ejecutar los tests
 

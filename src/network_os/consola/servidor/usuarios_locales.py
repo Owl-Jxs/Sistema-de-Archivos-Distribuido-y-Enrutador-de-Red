@@ -1,5 +1,6 @@
 from getpass import getpass
-#oculta los caracteres mientras escribes
+
+from ..entrada import leer_opcion
 
 def usuarios_locales(servidor):
     #permite registrar o eliminar usuarios del servidor
@@ -9,11 +10,7 @@ def usuarios_locales(servidor):
         print("2. Eliminar usuario")
         print("0. Volver")
 
-        opcion = input("Selecciona una opción: ").strip()
-
-        if opcion not in ["0", "1", "2"]: 
-            print("Opción inválida. Intenta de nuevo.")
-            continue
+        opcion = leer_opcion(["0", "1", "2"], "Selecciona una opción: ")
 
         if opcion == "1": 
             nombre = input("Nombre del nuevo usuario: ").strip()
@@ -31,7 +28,7 @@ def usuarios_locales(servidor):
             try:
                 servidor.agregar_usuario(nombre, contrasena)
                 print(f"Usuario '{nombre}' registrado.")
-            except ValueError as error:
+            except (ValueError, TypeError, OSError) as error:
                 print(f"No se pudo registrar el usuario: {error}")
 
         elif opcion == "2":
@@ -41,16 +38,20 @@ def usuarios_locales(servidor):
                 print("El nombre no puede estar vacío.")
                 continue
 
-            confirmacion = input(f"¿Eliminar al usuario '{nombre}'? (s/n): ").strip().lower()
+            confirmacion = leer_opcion(
+                ["s", "S", "n", "N"], f"¿Eliminar al usuario '{nombre}'? (s/n): ",
+            ).lower()
 
             if confirmacion != "s":
                 print("Eliminación cancelada.")
                 continue
 
             try:
-                servidor.eliminar_usuario(nombre)
-                print(f"Se solicitó la eliminación del usuario '{nombre}'.")
-            except (ValueError, KeyError) as error:
+                if servidor.eliminar_usuario(nombre):
+                    print(f"Usuario '{nombre}' eliminado.")
+                else:
+                    print(f"El usuario '{nombre}' no existe.")
+            except (ValueError, TypeError, KeyError, OSError) as error:
                 print(f"No se pudo eliminar el usuario: {error}")
 
         elif opcion == "0":
