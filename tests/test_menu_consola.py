@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from network_os.consola.menu_consola import MenuConsola
+from network_os.consola.principal.menu_consola import MenuConsola
 from network_os.logic.controller.auditoria.auditoria import Auditoria
 from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 from network_os.logic.controller.servidor.servidor import Servidor
@@ -77,7 +77,9 @@ class MenuConsolaTests(unittest.TestCase):
         servidor = self.__agregar_servidor()
         servidor.agregar_usuario("ana", "clave1234")
 
-        with patch("builtins.input", side_effect=["principal", "ana", "clave1234"]):
+        with patch("builtins.input", side_effect=["principal", "ana"]), patch(
+            "network_os.consola.principal.menu_consola.getpass", return_value="clave1234"
+        ):
             with patch.object(MenuConsola, "menu_servidor") as menu_servidor:
                 self.menu.iniciar_sesion()
 
@@ -90,8 +92,8 @@ class MenuConsolaTests(unittest.TestCase):
 
         with patch(
             "builtins.input",
-            side_effect=["principal", "ana", "clave9999", "0"],
-        ):
+            side_effect=["principal", "ana", "0"],
+        ), patch("network_os.consola.principal.menu_consola.getpass", return_value="clave9999"):
             with patch.object(MenuConsola, "menu_servidor") as menu_servidor:
                 self.menu.iniciar_sesion()
 
@@ -104,8 +106,8 @@ class MenuConsolaTests(unittest.TestCase):
 
         with patch(
             "builtins.input",
-            side_effect=["principal", "ana", "clave1234", "ana", "clave1234"],
-        ):
+            side_effect=["principal", "ana", "ana"],
+        ), patch("network_os.consola.principal.menu_consola.getpass", return_value="clave1234"):
             with patch.object(MenuConsola, "menu_servidor") as menu_servidor:
                 self.menu.iniciar_sesion()
 
