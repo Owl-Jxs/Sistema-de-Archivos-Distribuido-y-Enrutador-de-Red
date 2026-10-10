@@ -1,4 +1,4 @@
-from network_os.consola.menu_consola import MenuConsola
+from network_os.consola.principal.menu_consola import MenuConsola
 from network_os.logic.controller.auditoria.auditoria import Auditoria
 from network_os.logic.controller.grafo_red.grafoRed import GrafoRed
 from network_os.persistencia.persistencia_auditoria.persistencia_auditoria_csv import (
@@ -11,7 +11,8 @@ class NetworkOS:
 
     @staticmethod
     def ejecutar_menu() -> None:
-        grafo = GrafoRed(auditoria=Auditoria("RED", PersistenciaAuditoriaCSV()))
+        auditoria_red = Auditoria("RED", PersistenciaAuditoriaCSV())
+        grafo = GrafoRed(auditoria=auditoria_red)
         try:
             grafo.cargar()
         except FileNotFoundError:
@@ -20,5 +21,10 @@ class NetworkOS:
         MenuConsola(grafo).ejecutar()
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Inicializa el sistema y abre el menu principal de consola."""
     NetworkOS.ejecutar_menu()
+
+
+if __name__ == "__main__":
+    main()
