@@ -265,6 +265,61 @@ class MenusIntegradosTests(unittest.TestCase):
         salida = self.ejecutar_con_entradas(MenuConsola(grafo).menu_auditoria, ["1", "", "0"])
         self.assertIn("No hay registros", salida)
 
+    def test_sesion_permite_consultar_solo_auditoria_del_servidor_activo(self) -> None:
+        self.servidor.crear_subcarpeta("privada_principal")
+        self.destino.crear_subcarpeta("privada_secundario")
+        red_antes = self.grafo.consultar_auditoria()
+        locales_antes = self.servidor.consultar_auditoria()
+        destino_antes = self.destino.consultar_auditoria()
+        with patch(
+            "network_os.consola.principal.menu_consola.getpass", return_value="ClavePrivada123",
+        ), patch.object(
+            self.grafo, "consultar_auditoria", side_effect=AssertionError("Consulta de red inesperada"),
+        ), patch.object(
+            self.destino, "consultar_auditoria", side_effect=AssertionError("Consulta de otro servidor"),
+        ):
+            salida = self.ejecutar_con_entradas(self.menu.ejecutar, [
+                "2", "principal", "ana", "4", "1", "", "0", "0", "0",
+            ])
+        self.assertIn("AUDITORIA LOCAL | principal", salida)
+        self.assertIn("SERVIDOR:principal (1)", salida)
+        self.assertIn("privada_principal", salida)
+        self.assertNotIn("privada_secundario", salida)
+        self.assertNotIn("AGREGAR_SERVIDOR", salida)
+        self.assertNotIn("ClavePrivada123", salida)
+        self.assertEqual(red_antes, self.grafo.consultar_auditoria())
+        self.assertEqual(destino_antes, self.destino.consultar_auditoria())
+        nuevos = self.servidor.consultar_auditoria()[len(locales_antes):]
+        self.assertEqual(["AUTENTICAR_USUARIO"], [r.accion for r in nuevos])
+        self.assertIsNone(self.menu._MenuConsola__servidor_actual)
+
+    def test_consulta_local_de_servidor_sin_log_muestra_vacio(self) -> None:
+        menu = MenuServidor(self.grafo, self.destino)
+        red_antes = self.grafo.consultar_auditoria()
+        salida = self.ejecutar_con_entradas(menu.menu_auditoria, ["1", "", "0"])
+        self.assertIn("AUDITORIA LOCAL | secundario", salida)
+        self.assertIn("No hay registros de auditoria local", salida)
+        self.assertEqual([], self.destino.consultar_auditoria())
+        self.assertFalse(self.destino.auditoria.persistencia.ruta_csv.exists())
+        self.assertEqual(red_antes, self.grafo.consultar_auditoria())
+
+    def test_consulta_local_recupera_errores_sin_modificar_logs(self) -> None:
+        locales_antes = self.servidor.consultar_auditoria()
+        red_antes = self.grafo.consultar_auditoria()
+        for error in (OSError("sin acceso"), ValueError("registro invalido"), TypeError("tipo invalido")):
+            with self.subTest(error=type(error).__name__), patch.object(
+                self.servidor, "consultar_auditoria", side_effect=error,
+            ):
+                salida = self.ejecutar_con_entradas(self.menu_servidor.menu_auditoria, ["1", "", "0"])
+            self.assertIn("No se pudo consultar la auditoria local", salida)
+        self.assertEqual(locales_antes, self.servidor.consultar_auditoria())
+        self.assertEqual(red_antes, self.grafo.consultar_auditoria())
+
+    def test_auditoria_local_vuelve_con_cero_sin_leer_registros(self) -> None:
+        with patch.object(self.servidor, "consultar_auditoria") as consultar:
+            self.ejecutar_con_entradas(self.menu_servidor.menu_auditoria, ["0"])
+        consultar.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

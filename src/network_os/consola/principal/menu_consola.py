@@ -26,7 +26,7 @@ class MenuConsola:
             print("\n=== NETWORK OS | Menu principal ===")
             print("1. Administrar / diagnosticar red")
             print("2. Acceder a un servidor")
-            print("3. Consultar auditoria")
+            print("3. Consultar auditoria de la red")
             print("0. Salir")
             opcion = self.leer_option(["0", "1", "2", "3"])
 
@@ -164,7 +164,7 @@ class MenuConsola:
     def menu_auditoria(self) -> None:
         """Consulta y muestra los registros de auditoría de la red."""
         while True:
-            print("\n=== MENU DE AUDITORIA ===")
+            print("\n=== AUDITORIA DE LA RED ===")
             print("1. Leer y mostrar registros")
             print("0. Volver al menu principal")
 
