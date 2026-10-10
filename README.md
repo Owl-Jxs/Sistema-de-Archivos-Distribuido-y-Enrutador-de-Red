@@ -35,7 +35,7 @@ network-os/
 │   │   ├── entrada.py            ← lectura de opciones y pausas
 │   │   ├── red/menu_red.py       ← MenuRed: administración y diagnóstico de la red
 │   │   └── servidor/
-│   │       ├── menu_servidor.py  ← MenuServidor: archivos, usuarios y envío
+│   │       ├── menu_servidor.py  ← MenuServidor: archivos, usuarios, envío y auditoría local
 │   │       ├── menu_archivos.py  ← MenuArchivos: operaciones del repositorio
 │   │       └── usuarios_locales.py ← gestión de usuarios existente
 │   ├── logic/
@@ -68,6 +68,12 @@ $env:PYTHONPATH="src"; python -m network_os.main  # PowerShell
 Los submenús usan bucles y la opción `0` vuelve al menú que los abrió. Las
 contraseñas se leen con `getpass`. El primer usuario de un servidor vacío se
 crea durante el acceso, conservando el flujo actual.
+
+La opción `3` del menú principal consulta la auditoría de la red en
+`network_audit_log.txt`. La opción `4` del menú del servidor permite consultar
+sus registros locales en `servidores/<nombre>_<id>/auditoria.csv`, mediante
+`Servidor.consultar_auditoria()`. Cada consulta lee exclusivamente su archivo
+y no agrega eventos ni combina los registros de otros servidores.
 
 El menú de archivos lista el contenido directo, navega, crea carpetas y archivos,
 busca archivos desde la raíz, imprime el árbol y confirma los borrados en cascada.

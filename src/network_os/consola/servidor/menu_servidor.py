@@ -25,26 +25,57 @@ class MenuServidor:
             print("1. Archivos y carpetas")
             print("2. Usuarios locales")
             print("3. Enviar paquete")
+            print("4. Consultar auditoria local")
             print("0. Cerrar sesion")
-            opcion = leer_opcion(["0", "1", "2", "3"])
+            opcion = leer_opcion(["0", "1", "2", "3", "4"])
             if opcion == "0":
                 return
             if opcion == "1":
                 self.menu_archivos()
             elif opcion == "2":
                 self.menu_usuarios()
-            else:
+            elif opcion == "3":
                 try:
                     self.enviar_paquete()
                 except (ValueError, TypeError, OSError) as error:
                     print(f"No se pudo enviar el paquete: {error}")
                 pausar()
+            elif opcion == "4":
+                self.menu_auditoria()
 
     def menu_archivos(self) -> None:
         self.__archivos.menu_archivos()
 
     def menu_usuarios(self) -> None:
         usuarios_locales(self.__servidor)
+
+    def menu_auditoria(self) -> None:
+        """Consulta unicamente los registros del servidor de esta sesion."""
+        while True:
+            print(f"\n=== AUDITORIA LOCAL | {self.__servidor.nombre} ===")
+            print("1. Leer y mostrar registros locales")
+            print("0. Volver al menu del servidor")
+            opcion = leer_opcion(["0", "1"])
+            if opcion == "0":
+                return
+
+            try:
+                registros = self.__servidor.consultar_auditoria()
+                if not registros:
+                    print("No hay registros de auditoria local.")
+                else:
+                    print(f"\n=== REGISTROS LOCALES ({len(registros)}) ===")
+                    for indice, registro in enumerate(registros, start=1):
+                        print(f"\n--- Registro {indice} ---")
+                        print(f"Fecha y hora: {registro.fecha_hora}")
+                        print(f"Origen:       {registro.origen}")
+                        print(f"Categoria:    {registro.categoria}")
+                        print(f"Accion:       {registro.accion}")
+                        print(f"Resultado:    {registro.resultado}")
+                        print(f"Detalle:      {registro.detalle}")
+            except (OSError, ValueError, TypeError) as error:
+                print(f"No se pudo consultar la auditoria local: {error}")
+            pausar()
 
     def enviar_paquete(self) -> None:
         """Prepara contenido y utiliza la simulacion de envio disponible."""
