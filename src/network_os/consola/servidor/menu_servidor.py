@@ -17,7 +17,7 @@ class MenuServidor:
             raise TypeError("El servidor debe ser una instancia de Servidor.")
         self.__grafo = grafo
         self.__servidor = servidor
-        self.__archivos = MenuArchivos(servidor)
+        self.__archivos = MenuArchivos(servidor, grafo)
 
     def menu_servidor(self) -> None:
         while True:
