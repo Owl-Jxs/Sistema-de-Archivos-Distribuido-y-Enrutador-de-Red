@@ -235,6 +235,15 @@ class GestorArchivos:
         self.__siguiente_id = siguiente_id
         return copia
 
+    def importar_archivo(self, archivo: Archivo) -> Archivo:
+        """Inserta una copia independiente con un ID de este servidor."""
+        if not isinstance(archivo, Archivo):
+            raise TypeError("El contenido importado debe ser un Archivo.")
+        copia = archivo.clonar(self.__siguiente_id)
+        self.__carpeta_actual.agregar_archivo(copia)
+        self.__siguiente_id += 1
+        return copia
+
     def crear_nuevo_archivo(
         self, nombre: str, contenido: object = None
     ) -> Archivo:

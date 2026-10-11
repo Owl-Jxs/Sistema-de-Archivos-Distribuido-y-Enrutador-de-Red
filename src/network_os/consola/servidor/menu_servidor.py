@@ -78,7 +78,7 @@ class MenuServidor:
             pausar()
 
     def enviar_paquete(self) -> None:
-        """Prepara contenido y utiliza la simulacion de envio disponible."""
+        """Envia contenido y muestra el recorrido y la confirmacion del destino."""
         destino = input("Servidor de destino (vacio para cancelar): ").strip()
         if not destino:
             print("Envio cancelado.")
@@ -89,20 +89,11 @@ class MenuServidor:
             raise ValueError("El contenido del paquete no puede estar vacio.")
         paquete = self.__servidor.crear_paquete(destino, contenido)
         print(f"Origen: {paquete.origen} | Destino: {paquete.destino}")
-        print("Simulacion de envio; la transferencia del contenido esta pendiente.")
-        recorrido = self.__grafo.enviar_paquete(paquete.origen, paquete.destino)
-        if recorrido is None:
-            print("Paquete no entregado: el destino es inalcanzable.")
-        else:
-            print("Simulacion completada. El contenido del paquete no fue entregado.")
-
-        # PENDIENTE: GrafoRed solo admite origen/destino y simula el recorrido.
-        # Cuando admita PaqueteDatos y retorne ResultadoEnvio, sustituir la
-        # simulacion anterior por esta integracion:
-        # resultado = self.__grafo.enviar_paquete(paquete)
-        # for indice in range(len(resultado.ruta) - 1):
-        #     print(f"Salto {indice + 1}: {resultado.ruta[indice]} -> "
-        #           f"{resultado.ruta[indice + 1]}")
-        # print(f"Costo total: {resultado.latencia_total_ms} ms.")
-        # print(resultado.mensaje)
-        # print("Paquete entregado." if resultado.entregado else "Paquete no entregado.")
+        resultado = self.__servidor.enviar_paquete(self.__grafo, paquete)
+        for indice in range(len(resultado.ruta) - 1):
+            print(f"Salto {indice + 1}: {resultado.ruta[indice]} -> "
+                  f"{resultado.ruta[indice + 1]}")
+        if resultado.ruta:
+            print(f"Costo total: {resultado.latencia_total_ms} ms.")
+        print(resultado.mensaje)
+        print("Paquete entregado." if resultado.entregado else "Paquete no entregado.")

@@ -187,7 +187,7 @@ class MenusIntegradosTests(unittest.TestCase):
 
     def test_red_conexiones_latencia_listado_ping_y_guardado(self) -> None:
         salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, [
-            "3", "1", "principal", "secundario", "5", "",
+            "3", "1", "principal", "secundario", "",
             "4", "principal", "secundario", "2", "", "1", "",
             "5", "principal", "", "3", "2", "principal", "secundario", "", "0",
         ])
@@ -195,6 +195,52 @@ class MenusIntegradosTests(unittest.TestCase):
         self.assertIn("secundario: 2.0 ms", salida)
         self.assertTrue(self.grafo.persistencia.ruta_conexiones_csv.exists())
         self.assertEqual([], self.grafo.buscar_vertice("principal").conexiones)
+
+    def test_menu_crea_conexion_sin_pedir_ms_y_muestra_latencia_simulada(self) -> None:
+        with patch(
+            "network_os.logic.controller.grafo_red.grafoRed.randint", return_value=37,
+        ):
+            salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, [
+                "3", "1", "principal", "secundario", "", "0",
+            ])
+        self.assertIn("Latencia simulada: 37 ms", salida)
+        principal = self.grafo.buscar_vertice("principal")
+        secundario = self.grafo.buscar_vertice("secundario")
+        self.assertEqual(37, principal.buscar_conexion(secundario).latencia_ms)
+        self.assertEqual(37, secundario.buscar_conexion(principal).latencia_ms)
+        self.assertEqual(1, sum(r.accion == "AGREGAR_CONEXION" for r in self.grafo.consultar_auditoria()))
+
+    def test_ping_en_menu_red_conectada(self) -> None:
+        self.grafo.agregar_conexion("principal", "secundario", 7)
+        salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, ["5", "principal", "", "0"])
+        self.assertIn("Todos los servidores estan comunicados", salida)
+        self.assertIn("Servidores aislados: ninguno", salida)
+        self.assertIn("secundario: 7 ms", salida)
+
+    def test_ping_en_menu_distingue_fragmentacion_y_aislamiento(self) -> None:
+        for indice, nombre in enumerate(("C", "D", "E"), start=3):
+            self.grafo.agregar_servidor(Servidor(nombre, indice, self.base))
+        self.grafo.agregar_conexion("principal", "secundario", 7)
+        self.grafo.agregar_conexion("C", "D", 3)
+        salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, ["5", "principal", "", "0"])
+        self.assertIn("Red fragmentada", salida)
+        self.assertIn("C: inalcanzable (en otro componente de la red)", salida)
+        self.assertIn("D: inalcanzable (en otro componente de la red)", salida)
+        self.assertIn("E: inalcanzable (servidor aislado)", salida)
+        self.assertIn("Servidores aislados: E.", salida)
+        self.assertEqual(1, sum(r.accion == "PING_GENERAL" for r in self.grafo.consultar_auditoria()))
+
+    def test_ping_en_menu_incluye_origen_aislado(self) -> None:
+        salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, ["5", "principal", "", "0"])
+        self.assertIn("secundario: inalcanzable (servidor aislado)", salida)
+        self.assertIn("Servidores aislados: principal, secundario", salida)
+
+    def test_ping_en_menu_con_un_solo_servidor(self) -> None:
+        self.grafo.eliminar_servidor("secundario")
+        salida = self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, ["5", "principal", "", "0"])
+        self.assertIn("No hay otros servidores en la red", salida)
+        self.assertIn("Servidores aislados: principal", salida)
+        self.assertNotIn("Red fragmentada", salida)
 
     def test_red_agregar_servidor_usa_directorio_de_la_red(self) -> None:
         self.ejecutar_con_entradas(MenuRed(self.grafo).menu_red, ["2", "1", "nuevo", "", "0"])
@@ -218,24 +264,26 @@ class MenusIntegradosTests(unittest.TestCase):
         ])
         self.assertIn("No se pudo completar", salida)
 
-    def test_paquete_simulado_muestra_saltos_y_costo_sin_entregar_contenido(self) -> None:
+    def test_paquete_muestra_saltos_costo_y_entrega_contenido(self) -> None:
         intermedio = Servidor("intermedio", 3, self.base)
         self.grafo.agregar_servidor(intermedio)
         self.grafo.agregar_conexion("principal", "secundario", 20)
         self.grafo.agregar_conexion("principal", "intermedio", 3)
         self.grafo.agregar_conexion("intermedio", "secundario", 4)
         red_antes = self.grafo.consultar_auditoria()
-        with patch.object(self.destino, "recibir_paquete") as recibir:
+        with patch.object(self.destino, "recibir_paquete", wraps=self.destino.recibir_paquete) as recibir:
             salida = self.ejecutar_con_entradas(self.menu_servidor.enviar_paquete, ["secundario", "privado"])
-        recibir.assert_not_called()
+        recibir.assert_called_once()
         self.assertIn("Salto 1: principal -> intermedio", salida)
         self.assertIn("Salto 2: intermedio -> secundario", salida)
         self.assertIn("Costo total: 7 ms", salida)
-        self.assertIn("no fue entregado", salida)
+        self.assertIn("Paquete entregado.", salida)
         self.assertNotIn("privado", salida)
         nuevos = self.grafo.consultar_auditoria()[len(red_antes):]
         self.assertEqual(["ENVIAR_PAQUETE"], [r.accion for r in nuevos])
-        self.assertEqual([], self.destino.listar_contenido())
+        self.assertEqual("privado", self.destino.listar_contenido()[0].contenido)
+        recargado = Servidor("secundario", 2, self.base)
+        self.assertEqual("privado", recargado.listar_contenido()[0].contenido)
 
     def test_paquete_inalcanzable_cancelacion_y_entrada_invalida(self) -> None:
         salida = self.ejecutar_con_entradas(self.menu_servidor.enviar_paquete, ["secundario", "hola"])
