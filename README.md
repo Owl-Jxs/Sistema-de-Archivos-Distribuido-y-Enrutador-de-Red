@@ -63,55 +63,6 @@ set PYTHONPATH=src && python -m network_os.main   # Windows cmd
 $env:PYTHONPATH="src"; python -m network_os.main  # PowerShell
 ```
 
-## Menús y envío de paquetes
-
-Los submenús usan bucles y la opción `0` vuelve al menú que los abrió. Las
-contraseñas se leen con `getpass`. El primer usuario de un servidor vacío se
-crea durante el acceso, conservando el flujo actual.
-
-La opción `3` del menú principal consulta la auditoría de la red en
-`network_audit_log.txt`. La opción `4` del menú del servidor permite consultar
-sus registros locales en `servidores/<nombre>_<id>/auditoria.csv`, mediante
-`Servidor.consultar_auditoria()`. Cada consulta lee exclusivamente su archivo
-y no agrega eventos ni combina los registros de otros servidores.
-
-El menú de archivos lista el contenido directo, navega, crea carpetas y archivos,
-busca archivos desde la raíz, imprime el árbol y confirma los borrados en cascada.
-Las creaciones y eliminaciones se guardan mediante `Servidor.guardar_estado()`;
-la auditoría permanece en los módulos lógicos.
-
-Al crear una conexión, el menú pide los servidores de origen y destino.
-`GrafoRed.agregar_conexion()` asigna una latencia aleatoria entera entre 1 y
-100 ms, compartida por ambos sentidos y conservada en CSV. La lógica también
-admite una latencia explícita para las pruebas y la carga de datos.
-
-El Ping General utiliza BFS para determinar los servidores alcanzables y
-Dijkstra para conservar la información de latencias mínimas. El menú informa
-si todos están comunicados o si la red está fragmentada, y distingue los
-servidores aislados de los que pertenecen a otro componente conectado.
-Una autoconexión no cuenta como comunicación con otros servidores.
-
-El menú pide destino y contenido y llama a
-`Servidor.enviar_paquete(grafo, paquete)`. El grafo recibe un `PaqueteDatos`,
-calcula una sola vez la ruta mínima y solicita la recepción al destino. Devuelve
-un `ResultadoEnvio` con `entregado`, `ruta`, `latencia_total_ms` y `mensaje`;
-solo confirma la entrega cuando el contenido se recibió y guardó en CSV.
-Sin ruta devuelve `entregado=False`, una ruta vacía y latencia infinita.
-Los servidores inexistentes y los argumentos inválidos producen errores.
-
-El envío de consola admite texto, que se guarda como `mensaje_<fecha>.txt`
-en la carpeta actual del receptor, con un sufijo si el nombre ya existe.
-La lógica también admite archivos y subcarpetas: se importan copias independientes
-con IDs propios del destino. Un nombre duplicado se rechaza sin sobrescribir.
-Si falla el guardado, se retira la copia y se conserva el CSV anterior.
-La persistencia existente guarda los contenidos como texto, también para estos
-envíos; no serializa objetos Python arbitrarios con su tipo original.
-
-El origen registra su solicitud y el destino su recepción en sus logs locales;
-la red registra únicamente el envío, su recorrido, costo y resultado, sin copiar
-registros locales ni guardar el contenido del paquete. Se trata de una transferencia
-dentro del simulador, sin sockets ni comunicación entre equipos físicos.
-
 ## 🧪 Cómo ejecutar los tests
 
 Requisito: Python 3.10 o superior.
@@ -123,13 +74,6 @@ python -m pytest tests
 
 El `pyproject.toml` le indica a pytest que busque los módulos en `src/`, así
 que no hace falta configurar nada más.
-
-Alternativa sin pytest (librería estándar):
-
-```bash
-set PYTHONPATH=src
-python -m unittest discover -s tests
-```
 
 ## Promps usados durante el desarrollo:
 
