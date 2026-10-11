@@ -41,6 +41,9 @@ Thumbs.db
 servidores/
 *.tmp
 
+# Datos generados en runtime (red y servidores); no pertenecen al repo
+/datos/
+
 # Archivos generados que no pertenecen al proyecto
 /network_audit_log.txt
 /.codex-build/

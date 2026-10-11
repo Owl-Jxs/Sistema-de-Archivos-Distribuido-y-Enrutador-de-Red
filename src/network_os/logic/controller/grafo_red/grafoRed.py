@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import shutil
 from pathlib import Path
 from random import randint
 
@@ -448,7 +449,12 @@ class GrafoRed:
             if vertice is not vertice_eliminar:
                 vertice.eliminar_conexion(vertice_eliminar)
 
-        self.__vertices.remove(vertice_eliminar)    
+        self.__vertices.remove(vertice_eliminar)
+
+        shutil.rmtree(
+            vertice_eliminar.servidor.persistencia.directorio,
+            ignore_errors=True,
+        )
 
 
     def guardar(self) -> None:

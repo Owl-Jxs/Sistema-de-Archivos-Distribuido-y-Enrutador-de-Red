@@ -17,6 +17,7 @@ class PersistenciaAuditoriaCSV:
             raise TypeError("La ruta CSV debe ser un Path.")
 
         self.__ruta_csv = ruta_csv
+        self.__campos_encabezado: tuple[str, ...] | None = None
 
     @property
     def ruta_csv(self) -> Path:
@@ -30,14 +31,15 @@ class PersistenciaAuditoriaCSV:
         necesita_encabezado = (
             not self.__ruta_csv.exists() or self.__ruta_csv.stat().st_size == 0
         )
-        campos = self.CAMPOS
-        if not necesita_encabezado:
-            with self.__ruta_csv.open("r", encoding="utf-8", newline="") as archivo:
-                encabezado = next(csv.reader(archivo))
-            if len(encabezado) == len(self.CAMPOS) and set(encabezado) == set(self.CAMPOS):
-                campos = encabezado
-            elif encabezado != list(self.CAMPOS[:-1]):
-                raise ValueError("El archivo CSV contiene un encabezado invalido.")
+
+        if necesita_encabezado:
+            campos = self.CAMPOS
+        elif self.__campos_encabezado is not None:
+            # El encabezado ya se valido en esta instancia: no se relee.
+            campos = self.__campos_encabezado
+        else:
+            campos = self.__validar_encabezado()
+        self.__campos_encabezado = tuple(campos)
 
         with self.__ruta_csv.open("a", encoding="utf-8", newline="") as archivo:
             escritor = csv.DictWriter(archivo, fieldnames=campos)
@@ -53,6 +55,16 @@ class PersistenciaAuditoriaCSV:
                     "detalle": registro.detalle,
                 }
             )
+
+    def __validar_encabezado(self) -> tuple[str, ...]:
+        with self.__ruta_csv.open("r", encoding="utf-8", newline="") as archivo:
+            encabezado = next(csv.reader(archivo), [])
+
+        if len(encabezado) == len(self.CAMPOS) and set(encabezado) == set(self.CAMPOS):
+            return tuple(encabezado)
+        if encabezado == list(self.CAMPOS[:-1]):
+            return self.CAMPOS
+        raise ValueError("El archivo CSV contiene un encabezado invalido.")
 
     def consultar_todo(self) -> list[RegistroAuditoria]:
         if not self.__ruta_csv.exists():

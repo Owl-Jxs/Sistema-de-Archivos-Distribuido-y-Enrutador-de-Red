@@ -357,6 +357,18 @@ class Servidor:
             operacion,
         )
 
+    def compartir_archivo(self, id: int, destino: str) -> PaqueteDatos:
+        def operacion() -> PaqueteDatos:
+            copia = self.__repositorio.exportar_archivo(id)
+            return self.crear_paquete(destino, copia)
+
+        return self.ejecutar_accion(
+            "RED",
+            "COMPARTIR_ARCHIVO",
+            f"Paquete de archivo con ID {id} preparado para '{destino}'.",
+            operacion,
+        )
+
     def enviar_paquete(self, grafo: GrafoRed, paquete: PaqueteDatos) -> ResultadoEnvio:
         """Solicita el envio a la red y registra el resultado en el log local."""
         from ..grafo_red.grafoRed import GrafoRed
@@ -368,7 +380,8 @@ class Servidor:
                 raise TypeError("El paquete debe ser una instancia de PaqueteDatos.")
             if paquete.origen != self.__nombre:
                 raise ValueError("El paquete no pertenece a este servidor de origen.")
-            if grafo.buscar_vertice(self.__nombre).servidor is not self:
+            registrado = grafo.buscar_vertice(self.__nombre).servidor
+            if (registrado.nombre, registrado.id) != (self.__nombre, self.__id):
                 raise ValueError("Este servidor no esta registrado en la red.")
             return grafo.enviar_paquete(paquete)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -66,7 +67,9 @@ class PersistenciaArbolCSV:
                     archivo.id,
                     archivo.nombre,
                     carpeta.id,
-                    archivo.contenido,
+                    json.dumps(
+                        archivo.contenido, ensure_ascii=False, default=str
+                    ),
                     archivo.ultima_modificacion.isoformat(),
                 ]
             )
@@ -170,7 +173,7 @@ class PersistenciaArbolCSV:
                     f"a una carpeta inexistente: {id_carpeta}."
                 )
 
-            contenido = fila["contenido"]
+            contenido = self.__cargar_contenido(fila["contenido"])
 
             fecha_texto = fila["ultima_modificacion"].strip()
 
@@ -191,6 +194,13 @@ class PersistenciaArbolCSV:
             carpetas[id_carpeta].agregar_archivo(archivo)
 
         return raiz   
+
+    @staticmethod
+    def __cargar_contenido(texto: str) -> object:
+        try:
+            return json.loads(texto)
+        except json.JSONDecodeError:
+            return texto
 
     @staticmethod
     def __tiene_padre(

@@ -143,6 +143,7 @@ class GestorArchivos:
     def guardar_todo(self) -> None:
         if self.__persistencia is None:
             raise RuntimeError("El gestor no tiene una persistencia configurada.")
+        self.__preparar_nueva_operacion_portapapeles()
         self.__persistencia.guardar(self.__raiz)
 
     def guardar(self) -> None:
@@ -224,6 +225,14 @@ class GestorArchivos:
         self.__validar_id(id)
         copia, _ = self.__carpeta_actual.clonar_subcarpeta(id, 0)
         return copia
+
+    def exportar_archivo(self, id: int) -> Archivo:
+        """Copia un archivo directo sin modificar el portapapeles."""
+        self.__validar_id(id)
+        archivo = self.__carpeta_actual.buscar_archivo_por_id(id)
+        if archivo is None:
+            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
+        return archivo.clonar(0)
 
     def importar_subcarpeta(self, carpeta: Carpeta) -> Carpeta:
         """Inserta una copia con IDs validos para este arbol."""

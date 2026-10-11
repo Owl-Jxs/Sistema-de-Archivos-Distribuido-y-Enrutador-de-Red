@@ -17,6 +17,13 @@ class NetworkOS:
             grafo.cargar()
         except FileNotFoundError:
             print("Sin datos de red previos; se inicia una red vacia.")
+        except (OSError, ValueError) as error:
+            # Un CSV corrupto no debe impedir arrancar: se ignora y se
+            # empieza con una red vacia.
+            print(
+                "No se pudo leer el CSV de la red "
+                f"({type(error).__name__}: {error}); se inicia una red vacia."
+            )
 
         MenuConsola(grafo).ejecutar()
 
