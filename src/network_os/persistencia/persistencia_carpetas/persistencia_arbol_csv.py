@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 from datetime import datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from ...logic.model.archivo.archivo import Archivo
 from ...logic.structure.carpeta.carpeta import Carpeta
@@ -21,30 +22,25 @@ class PersistenciaArbolCSV:
 
         self.__ruta_csv.parent.mkdir(parents=True, exist_ok=True)
 
-        with self.__ruta_csv.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as archivo_csv:
-
-            escritor = csv.writer(archivo_csv)
-
-            escritor.writerow(
-                [
-                    "tipo",
-                    "id",
-                    "nombre",
-                    "id_padre",
-                    "contenido",
+        ruta_temporal = None
+        try:
+            # Se reemplaza el CSV solo cuando el arbol completo esta escrito.
+            with NamedTemporaryFile(
+                mode="w", newline="", encoding="utf-8",
+                dir=self.__ruta_csv.parent, delete=False,
+            ) as archivo_csv:
+                ruta_temporal = Path(archivo_csv.name)
+                escritor = csv.writer(archivo_csv)
+                escritor.writerow([
+                    "tipo", "id", "nombre", "id_padre", "contenido",
                     "ultima_modificacion",
-                ]
-            )
+                ])
+                self.__guardar_carpeta(escritor, raiz, None)
+            ruta_temporal.replace(self.__ruta_csv)
+        finally:
+            if ruta_temporal is not None:
+                ruta_temporal.unlink(missing_ok=True)
 
-            self.__guardar_carpeta(
-                escritor,
-                raiz,
-                None,
-            )
     def __guardar_carpeta(
         self,
         escritor: csv.writer,

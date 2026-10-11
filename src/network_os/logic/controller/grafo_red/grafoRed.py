@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from random import randint
 
 from ....persistencia.persistencia_red.persistencia_red_csv import (
     PersistenciaRedCSV,
@@ -9,12 +10,17 @@ from ....persistencia.persistencia_red.persistencia_red_csv import (
 from ..servidor.servidor import Servidor
 from ..auditoria.auditoria import Auditoria
 from ...model.conexion.conexion import Conexion
+from ...model.paquete_datos.paquete_datos import PaqueteDatos
+from ...model.resultado_envio.resultadoEnvio import ResultadoEnvio
 from ...model.registro_auditoria.registro_auditoria import RegistroAuditoria
 from ...structure.vertice_red.verticeRed import VerticeRed
 
 
 class GrafoRed:
     """Grafo ponderado de servidores de la red."""
+
+    LATENCIA_MINIMA_MS = 1
+    LATENCIA_MAXIMA_MS = 100
 
     def __init__(
         self,
@@ -111,13 +117,26 @@ class GrafoRed:
         self,
         origen: str,
         destino: str,
-        latencia: float,
+        latencia: float | None = None,
     ) -> None:
-        """Conecta dos servidores con una arista bidireccional de latencia dada."""
+        """Conecta dos servidores; sin latencia explicita, simula entre 1 y 100 ms."""
+        def operacion() -> float:
+            latencia_asignada = (
+                randint(self.LATENCIA_MINIMA_MS, self.LATENCIA_MAXIMA_MS)
+                if latencia is None else latencia
+            )
+            self._agregar_conexion(origen, destino, latencia_asignada)
+            return latencia_asignada
+
         self.__auditoria.ejecutar(
             "RED", "AGREGAR_CONEXION",
-            f"Origen: {origen}; destino: {destino}; latencia: {latencia} ms.",
-            lambda: self._agregar_conexion(origen, destino, latencia),
+            f"Origen: {origen}; destino: {destino}; "
+            f"latencia: {latencia if latencia is not None else 'simulada'} ms.",
+            operacion,
+            lambda asignada: (
+                "EXITOSO",
+                f"Origen: {origen}; destino: {destino}; latencia: {asignada} ms.",
+            ),
         )
 
     def _agregar_conexion(self, origen: str, destino: str, latencia: float) -> None:
@@ -314,73 +333,73 @@ class GrafoRed:
 
     def enviar_paquete(
         self,
-        origen: str,
-        destino: str,
-    ) -> tuple[list[str], float] | None:
-        """Envia un paquete siguiendo la ruta de menor latencia."""
+        paquete: PaqueteDatos,
+    ) -> ResultadoEnvio:
+        """Enruta el paquete y confirma la recepcion en el servidor destino."""
+        detalle = (
+            f"Origen: {paquete.origen}; destino: {paquete.destino}."
+            if isinstance(paquete, PaqueteDatos) else "Paquete invalido."
+        )
 
-        detalle = f"Origen: {origen}; destino: {destino}."
-
-        def describir(
-            resultado: tuple[list[str], float] | None,
-        ) -> tuple[str, str]:
-            if resultado is None:
-                return "FALLIDO", f"{detalle} No existe una ruta."
-
-            ruta, costo = resultado
-            recorrido = " -> ".join(ruta)
-
+        def describir(resultado: ResultadoEnvio) -> tuple[str, str]:
+            recorrido = " -> ".join(resultado.ruta) or "sin ruta"
             return (
-                "EXITOSO",
-                f"{detalle} Paquete enviado por {recorrido}; "
-                f"costo total: {costo} ms.",
+                "EXITOSO" if resultado.entregado else "FALLIDO",
+                f"{detalle} Recorrido: {recorrido}; "
+                f"costo total: {resultado.latencia_total_ms} ms. {resultado.mensaje}",
             )
 
         return self.__auditoria.ejecutar(
             "RED",
             "ENVIAR_PAQUETE",
             detalle,
-            lambda: self.__enviar_paquete(origen, destino),
+            lambda: self.__enviar_paquete(paquete),
             describir,
         )
 
     def __enviar_paquete(
         self,
-        origen: str,
-        destino: str,
-    ) -> tuple[list[str], float] | None:
-        resultado = self.__ruta_mas_corta(origen, destino)
-
-        if resultado is None:
-            print(
-                f"No se puede enviar el paquete: "
-                f"no existe una ruta entre {origen} y {destino}."
+        paquete: PaqueteDatos,
+    ) -> ResultadoEnvio:
+        if not isinstance(paquete, PaqueteDatos):
+            raise TypeError("El paquete debe ser una instancia de PaqueteDatos.")
+        recorrido = self.__ruta_mas_corta(paquete.origen, paquete.destino)
+        if recorrido is None:
+            return ResultadoEnvio(
+                False, [], math.inf, "No existe una ruta: el destino es inalcanzable."
             )
-            return None
 
-        ruta, costo = resultado
-
-        print("\nEnviando paquete...")
-        
-        for indice in range(len(ruta) - 1):
-            actual = ruta[indice]
-            siguiente = ruta[indice + 1]
-
-            print(f"Salto {indice + 1}: {actual} -> {siguiente}")
-
-        print(f"Costo total: {costo} ms.")
-
-        return ruta, costo
+        ruta, costo = recorrido
+        destino = self.buscar_vertice(paquete.destino).servidor
+        try:
+            destino.recibir_paquete(paquete)
+        except (ValueError, TypeError, OSError) as error:
+            return ResultadoEnvio(
+                False, ruta, costo,
+                f"El destino no confirmo la recepcion ({type(error).__name__}).",
+            )
+        return ResultadoEnvio(True, ruta, costo, "Contenido recibido y guardado en el destino.")
 
     def ping_general(self, origen: str) -> dict[str, float | None]:
-        """Latencia minima a cada otro servidor; None indica que es inalcanzable."""
+        """Diagnostica alcance con BFS y muestra latencias minimas con Dijkstra."""
         def describir(resultado: dict[str, float | None]) -> tuple[str, str]:
             destinos = "; ".join(
                 f"{nombre}: {latencia} ms" if latencia is not None
                 else f"{nombre}: inalcanzable"
                 for nombre, latencia in resultado.items()
             )
-            return "EXITOSO", f"Origen: {origen}; {destinos or 'sin otros servidores'}."
+            if not resultado:
+                estado = "Red con un unico servidor."
+            elif all(latencia is not None for latencia in resultado.values()):
+                estado = "Todos los servidores estan comunicados."
+            else:
+                estado = "Red fragmentada: no todos los servidores estan comunicados."
+            aislados = ", ".join(self.servidores_aislados()) or "ninguno"
+            return (
+                "EXITOSO",
+                f"Origen: {origen}; {destinos or 'sin otros servidores'}. "
+                f"{estado} Servidores aislados: {aislados}.",
+            )
 
         return self.__auditoria.ejecutar(
             "RED", "PING_GENERAL", f"Origen: {origen}.",
@@ -388,9 +407,10 @@ class GrafoRed:
         )
 
     def __ping_general(self, origen: str) -> dict[str, float | None]:
+        alcanzables = set(self.bfs(origen))
         distancias, _ = self.dijkstra(origen)
         return {
-            nombre: distancia if distancia != math.inf else None
+            nombre: distancia if nombre in alcanzables else None
             for nombre, distancia in distancias.items()
             if nombre != origen.strip()
         }
@@ -398,7 +418,7 @@ class GrafoRed:
 
 
     def servidores_aislados(self) -> list[str]:
-        """Devuelve los nombres de los servidores sin conexiones."""
+        """Devuelve los servidores sin conexiones hacia otros servidores."""
 
         aislados = []
 
