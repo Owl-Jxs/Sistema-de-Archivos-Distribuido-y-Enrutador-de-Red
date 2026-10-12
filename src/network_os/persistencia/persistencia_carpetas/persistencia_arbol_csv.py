@@ -71,7 +71,7 @@ class PersistenciaArbolCSV:
                 ]
             )
 
-        for subcarpeta in carpeta.listar_contenido():
+        for subcarpeta in carpeta.listar_subcarpetas():
             self.__guardar_carpeta(
                 escritor,
                 subcarpeta,
