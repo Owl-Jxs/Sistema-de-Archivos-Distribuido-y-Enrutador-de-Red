@@ -133,3 +133,30 @@ python -m unittest discover -s tests
 
 ## Promps usados durante el desarrollo:
 
+## Isabella Cubillo Paniagua
+
+1. Archivos y persistencia de carpetas:
+Ayúdame a revisar cómo implementar el guardado y la carga de carpetas para que la estructura de archivos pueda persistirse y recuperarse correctamente. Explícame cómo manejar los datos almacenados y cómo evitar problemas al reconstruir la estructura desde los archivos de persistencia.
+
+2. Grafo de red
+
+Actualizar latencia:
+Ayúdame a implementar una función para actualizar la latencia de una conexión entre dos servidores del grafo de red. Considera cómo identificar los servidores, validar la nueva latencia y mantener actualizada la conexión existente.
+
+Enviar paquetes:
+Explícame cómo implementar el envío de un paquete de datos entre servidores representados en un grafo de red. Considera cómo identificar el servidor de origen y el destino, comprobar si existe una ruta y manejar los casos en los que el destino no sea alcanzable.
+
+Identificar servidores aislados:
+Ayúdame a determinar cómo identificar los servidores aislados de un grafo de red. Explícame cómo recorrer la estructura y distinguir un servidor sin conexiones de uno que sí forma parte de la red.
+
+Eliminar servidores:
+Ayúdame a revisar la lógica para eliminar un servidor de un grafo de red. Considera cómo retirar el vértice correspondiente y sus conexiones para evitar que queden referencias a un servidor que ya no existe.
+
+3. Menú de red y auditoría
+
+Menú de red:
+Ayúdame a organizar el menú de administración de la red para que el usuario pueda acceder de forma clara a las operaciones disponibles, como administrar servidores y conexiones, actualizar latencias y consultar información de conectividad. Procura mantener el menú coherente con los métodos existentes en el proyecto.
+
+Menú de auditoría:
+Ayúdame a estructurar un menú de auditoría que permita consultar los registros de operaciones del sistema. Considera opciones para visualizar los registros disponibles y los más recientes, utilizando las funciones de auditoría que ya existen en el proyecto.
+
