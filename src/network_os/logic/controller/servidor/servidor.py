@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from hmac import compare_digest
 from pathlib import Path
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from ....persistencia.persistencias_servidorCSV.persistencias_servidorCSV import (
     PersistenciaServidorCSV,
@@ -11,10 +11,14 @@ from ....persistencia.persistencias_servidorCSV.persistencias_servidorCSV import
 from ...model.archivo.archivo import Archivo
 from ...model.paquete_datos.paquete_datos import PaqueteDatos
 from ...model.registro_auditoria.registro_auditoria import RegistroAuditoria
+from ...model.resultado_envio.resultadoEnvio import ResultadoEnvio
 from ...structure.carpeta.carpeta import Carpeta
 from ...structure.hash_table.hash_map import HashMap
 from ..auditoria.auditoria import Auditoria
 from ..gestor_archivos.gestor_archivos import GestorArchivos
+
+if TYPE_CHECKING:
+    from ..grafo_red.grafoRed import GrafoRed
 
 
 T = TypeVar("T")
@@ -98,6 +102,12 @@ class Servidor:
             )
         if any(caracter.isspace() for caracter in nombre_limpio):
             raise ValueError("El nombre de usuario no puede contener espacios.")
+        # Sin al menos una letra, json.loads devuelve la clave como int al
+        # recargar el CSV y deja de coincidir con el str que se autentica.
+        if not any(caracter.isalpha() for caracter in nombre_limpio):
+            raise ValueError(
+                "El nombre de usuario debe contener al menos una letra."
+            )
         if not all(
             caracter.isalnum() or caracter in "._-"
             for caracter in nombre_limpio
@@ -242,24 +252,6 @@ class Servidor:
             lambda: self.__repositorio.eliminar_archivo(id),
         )
 
-    def cortar_archivo(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "CORTAR_ARCHIVO", f"Archivo ID {id}.",
-            lambda: self.__repositorio.cortar_archivo(id),
-        )
-
-    def copiar_archivo(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "COPIAR_ARCHIVO", f"Archivo ID {id}.",
-            lambda: self.__repositorio.copiar_archivo(id),
-        )
-
-    def pegar_archivo(self) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "PEGAR_ARCHIVO", "Archivo del portapapeles.",
-            self.__repositorio.pegar_archivo,
-        )
-
     def crear_subcarpeta(self, nombre: str) -> Carpeta:
         return self.ejecutar_accion(
             "ARCHIVOS",
@@ -302,30 +294,6 @@ class Servidor:
             self.__repositorio.volver_a_raiz,
         )
 
-    def cortar_subcarpeta(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "CORTAR_SUBCARPETA",
-            f"Subcarpeta con ID {id}.",
-            lambda: self.__repositorio.extraer_subcarpeta(id),
-        )
-
-    def copiar_subcarpeta(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "COPIAR_SUBCARPETA",
-            f"Subcarpeta con ID {id}.",
-            lambda: self.__repositorio.copiar_subcarpeta(id),
-        )
-
-    def pegar_subcarpeta(self) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "PEGAR_SUBCARPETA",
-            "Contenido del portapapeles.",
-            self.__repositorio.pegar_subcarpeta,
-        )
-
     def crear_paquete(self, destino: str, contenido: object) -> PaqueteDatos:
         if isinstance(contenido, Carpeta):
             tipo = "SUBCARPETA"
@@ -353,15 +321,66 @@ class Servidor:
             operacion,
         )
 
+    def enviar_paquete(self, grafo: GrafoRed, paquete: PaqueteDatos) -> ResultadoEnvio:
+        """Solicita el envio a la red y registra el resultado en el log local."""
+        from ..grafo_red.grafoRed import GrafoRed
+
+        def operacion() -> ResultadoEnvio:
+            if not isinstance(grafo, GrafoRed):
+                raise TypeError("El grafo debe ser una instancia de GrafoRed.")
+            if not isinstance(paquete, PaqueteDatos):
+                raise TypeError("El paquete debe ser una instancia de PaqueteDatos.")
+            if paquete.origen != self.__nombre:
+                raise ValueError("El paquete no pertenece a este servidor de origen.")
+            if grafo.buscar_vertice(self.__nombre).servidor is not self:
+                raise ValueError("Este servidor no esta registrado en la red.")
+            return grafo.enviar_paquete(paquete)
+
+        destino = paquete.destino if isinstance(paquete, PaqueteDatos) else "desconocido"
+        detalle = f"Envio de paquete a '{destino}'."
+        return self.__auditoria.ejecutar(
+            "RED", "ENVIAR_PAQUETE", detalle, operacion,
+            lambda resultado: (
+                "EXITOSO" if resultado.entregado else "FALLIDO",
+                f"{detalle} {resultado.mensaje}",
+            ),
+        )
+
     def recibir_paquete(self, paquete: PaqueteDatos) -> None:
+        """Recibe una copia en la carpeta actual y persiste antes de confirmar."""
         def operacion() -> None:
             if not isinstance(paquete, PaqueteDatos):
                 raise TypeError("El paquete debe ser una instancia de PaqueteDatos.")
             if paquete.destino != self.__nombre:
                 raise ValueError("El paquete no esta dirigido a este servidor.")
-            if paquete.tipo != "SUBCARPETA" or not isinstance(paquete.contenido, Carpeta):
-                raise ValueError("El servidor solo puede recibir subcarpetas por ahora.")
-            self.__repositorio.importar_subcarpeta(paquete.contenido)
+            if paquete.tipo == "SUBCARPETA" and isinstance(paquete.contenido, Carpeta):
+                recibido = self.__repositorio.importar_subcarpeta(paquete.contenido)
+            elif paquete.tipo == "ARCHIVO" and isinstance(paquete.contenido, Archivo):
+                recibido = self.__repositorio.importar_archivo(paquete.contenido)
+            elif paquete.tipo == "STR" and isinstance(paquete.contenido, str):
+                if not paquete.contenido.strip():
+                    raise ValueError("El contenido del paquete no puede estar vacio.")
+                base = f"mensaje_{paquete.fecha_envio:%Y%m%d_%H%M%S_%f}"
+                nombre = f"{base}.txt"
+                carpeta = self.__repositorio.carpeta_actual
+                sufijo = 1
+                while (carpeta.buscar_archivo_por_nombre(nombre) is not None
+                       or carpeta.buscar_subcarpeta_por_nombre(nombre) is not None):
+                    nombre = f"{base}_{sufijo}.txt"
+                    sufijo += 1
+                recibido = self.__repositorio.crear_nuevo_archivo(nombre, paquete.contenido)
+            else:
+                raise ValueError("El tipo de paquete o su contenido no es compatible.")
+
+            try:
+                self.__repositorio.guardar()
+            except Exception:
+                # Si falla el CSV, se retira solo la copia recien recibida.
+                if isinstance(recibido, Carpeta):
+                    self.__repositorio.eliminar_subcarpeta(recibido.id)
+                else:
+                    self.__repositorio.eliminar_archivo(recibido.id)
+                raise
 
         origen = paquete.origen if isinstance(paquete, PaqueteDatos) else "desconocido"
         self.ejecutar_accion(
@@ -398,7 +417,7 @@ class Servidor:
     def cargar_estado(self) -> None:
         def operacion() -> None:
             self.__credenciales_usuarios = self.__servidor_csv.usuarios.cargar()
-            self.__repositorio.cargar()
+            self.__repositorio.cargar_servidor()
 
         self.ejecutar_accion(
             "PERSISTENCIA",

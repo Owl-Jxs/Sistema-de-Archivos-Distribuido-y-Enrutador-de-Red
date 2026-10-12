@@ -204,10 +204,6 @@ class Carpeta:
             actual = actual.__siguiente_subcarpeta
         return subcarpetas
 
-    def listar_contenido(self) -> list[Carpeta]:
-        """Conserva el nombre historico para listar las subcarpetas directas."""
-        return self.listar_subcarpetas()
-
     def listar_archivos(self) -> list[Archivo]:
         return list(self.__archivos)
 
@@ -334,24 +330,10 @@ class Carpeta:
             self.__carpeta_padre.extraer_subcarpeta(self.__id)
         self.__vaciado_recursivo()
 
-    def clonar_subcarpeta(
-        self, id: int, primer_nuevo_id: int
-    ) -> tuple[Carpeta, int]:
-        self.__validar_id(id)
-        self.__validar_id(primer_nuevo_id)
-        original = self.buscar_subcarpeta_por_id(id)
-
-        if original is None:
-            raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
-        return original.__clonar_recursivo(primer_nuevo_id)
-
     def clonar_subarbol(self, primer_nuevo_id: int) -> tuple[Carpeta, int]:
         """Clona esta carpeta completa usando una secuencia nueva de IDs."""
         self.__validar_id(primer_nuevo_id)
         return self.__clonar_recursivo(primer_nuevo_id)
-
-    def pegar_subcarpeta(self, carpeta: Carpeta) -> None:
-        self.agregar_subcarpeta(carpeta)
 
     def agregar_archivo(self, archivo: Archivo) -> None:
         if not isinstance(archivo, Archivo):
@@ -428,13 +410,3 @@ class Carpeta:
 
     def eliminar_archivo(self, id: int) -> Archivo:
         return self.extraer_archivo(id)
-
-    def clonar_archivo(self, id: int, nuevo_id: int) -> Archivo:
-        self.__validar_id(nuevo_id)
-        archivo = self.buscar_archivo_por_id(id)
-        if archivo is None:
-            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
-        return archivo.clonar(nuevo_id)
-
-    def pegar_archivo(self, archivo: Archivo) -> None:
-        self.agregar_archivo(archivo)

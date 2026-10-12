@@ -1,19 +1,12 @@
 from __future__ import annotations
 
-from typing import Literal
 from ...model.archivo.archivo import Archivo
 from ...structure.carpeta.carpeta import Carpeta
 from ....persistencia.persistencia_carpetas.persistencia_arbol_csv import PersistenciaArbolCSV
 
-OperacionPortapapeles = Literal["Cortar", "Copiar"]
-ElementoPortapapeles = Carpeta | Archivo
-
 
 class GestorArchivos:
     """Controla la navegacion y las operaciones del arbol de archivos."""
-
-    CORTAR = "Cortar"
-    COPIAR = "Copiar"
 
     def __init__(
         self,
@@ -32,9 +25,6 @@ class GestorArchivos:
                 "La persistencia debe ser una PersistenciaArbolCSV o None."
             )
         self.__persistencia = persistencia
-        self.__elemento_portapapeles: ElementoPortapapeles | None = None
-        self.__operacion_portapapeles: OperacionPortapapeles | None = None
-        self.__carpeta_origen: Carpeta | None = None
 
     @staticmethod
     def __validar_str(entrada: str | None) -> None:
@@ -45,34 +35,6 @@ class GestorArchivos:
     def __validar_id(id: int | None) -> None:
         if not isinstance(id, int) or isinstance(id, bool) or id < 0:
             raise ValueError("El ID debe ser un entero no negativo.")
-
-    def __preparar_nueva_operacion_portapapeles(self) -> None:
-        """Restaura un corte pendiente antes de reemplazar el portapapeles."""
-        elemento = self.__elemento_portapapeles
-        if elemento is not None and self.__operacion_portapapeles == self.CORTAR:
-            if self.__carpeta_origen is None:
-                raise RuntimeError("El corte pendiente no tiene una carpeta de origen.")
-
-            if self.__pertenece_al_arbol(self.__carpeta_origen):
-                if isinstance(elemento, Carpeta):
-                    self.__carpeta_origen.agregar_subcarpeta(elemento)
-                else:
-                    self.__carpeta_origen.agregar_archivo(elemento)
-            elif isinstance(elemento, Carpeta):
-                elemento.eliminar_subcarpeta_irreversible()
-
-        self.__limpiar_portapapeles()
-
-    def __pertenece_al_arbol(self, carpeta: Carpeta) -> bool:
-        actual: Carpeta | None = carpeta
-        while actual is not None and actual is not self.__raiz:
-            actual = actual.carpeta_padre
-        return actual is self.__raiz
-
-    def __limpiar_portapapeles(self) -> None:
-        self.__operacion_portapapeles = None
-        self.__elemento_portapapeles = None
-        self.__carpeta_origen = None
 
     def __recalcular_siguiente_id(self) -> None:
         maximo_id = self.__raiz.id
@@ -140,13 +102,10 @@ class GestorArchivos:
     def volver_a_raiz(self) -> None:
         self.__carpeta_actual = self.__raiz
 
-    def guardar_todo(self) -> None:
+    def guardar(self) -> None:
         if self.__persistencia is None:
             raise RuntimeError("El gestor no tiene una persistencia configurada.")
         self.__persistencia.guardar(self.__raiz)
-
-    def guardar(self) -> None:
-        self.guardar_todo()
 
     def cargar_servidor(self) -> None:
         if self.__persistencia is None:
@@ -157,11 +116,7 @@ class GestorArchivos:
         self.__raiz = self.__persistencia.cargar()
         self.__carpeta_actual = self.__raiz
         self.__nombre_repertorio = self.__raiz.nombre_carpeta
-        self.__limpiar_portapapeles()
         self.__recalcular_siguiente_id()
-
-    def cargar(self) -> None:
-        self.cargar_servidor()
 
 
     def crear_nueva_subcarpeta(self, nombre: str) -> Carpeta:
@@ -187,42 +142,13 @@ class GestorArchivos:
         subcarpeta = self.__carpeta_actual.extraer_subcarpeta(id)
         subcarpeta.eliminar_subcarpeta_irreversible()
 
-    def extraer_subcarpeta(self, id: int) -> None:
-        """Corta una subcarpeta directa y la guarda en el portapapeles."""
-        self.__validar_id(id)
-        if self.__carpeta_actual.buscar_subcarpeta_por_id(id) is None:
-            raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
-        self.__preparar_nueva_operacion_portapapeles()
-
-        self.__elemento_portapapeles = self.__carpeta_actual.extraer_subcarpeta(id)
-        self.__operacion_portapapeles = self.CORTAR
-        self.__carpeta_origen = self.__carpeta_actual
-
-    def copiar_subcarpeta(self, id: int) -> None:
-        self.__validar_id(id)
-        if self.__carpeta_actual.buscar_subcarpeta_por_id(id) is None:
-            raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
-        self.__preparar_nueva_operacion_portapapeles()
-
-        copia, siguiente_id = self.__carpeta_actual.clonar_subcarpeta(
-            id, self.__siguiente_id
-        )
-        self.__elemento_portapapeles = copia
-        self.__siguiente_id = siguiente_id
-        self.__operacion_portapapeles = self.COPIAR
-        self.__carpeta_origen = self.__carpeta_actual
-
-    def pegar_subcarpeta(self) -> None:
-        if not isinstance(self.__elemento_portapapeles, Carpeta):
-            raise ValueError("El portapapeles no contiene una subcarpeta.")
-
-        self.__carpeta_actual.pegar_subcarpeta(self.__elemento_portapapeles)
-        self.__limpiar_portapapeles()
-
     def exportar_subcarpeta(self, id: int) -> Carpeta:
-        """Crea una copia completa sin modificar el portapapeles."""
+        """Crea una copia completa del subarbol, sin tocar el original."""
         self.__validar_id(id)
-        copia, _ = self.__carpeta_actual.clonar_subcarpeta(id, 0)
+        original = self.__carpeta_actual.buscar_subcarpeta_por_id(id)
+        if original is None:
+            raise ValueError(f"No se encontro ninguna subcarpeta con el ID {id}.")
+        copia, _ = original.clonar_subarbol(0)
         return copia
 
     def importar_subcarpeta(self, carpeta: Carpeta) -> Carpeta:
@@ -233,6 +159,15 @@ class GestorArchivos:
         copia, siguiente_id = carpeta.clonar_subarbol(self.__siguiente_id)
         self.__carpeta_actual.agregar_subcarpeta(copia)
         self.__siguiente_id = siguiente_id
+        return copia
+
+    def importar_archivo(self, archivo: Archivo) -> Archivo:
+        """Inserta una copia independiente con un ID de este servidor."""
+        if not isinstance(archivo, Archivo):
+            raise TypeError("El contenido importado debe ser un Archivo.")
+        copia = archivo.clonar(self.__siguiente_id)
+        self.__carpeta_actual.agregar_archivo(copia)
+        self.__siguiente_id += 1
         return copia
 
     def crear_nuevo_archivo(
@@ -247,10 +182,6 @@ class GestorArchivos:
         self.__carpeta_actual.agregar_archivo(nuevo_archivo)
         self.__siguiente_id += 1
         return nuevo_archivo
-
-    def agregar_archivo(self, nombre: str, contenido: object = None) -> Archivo:
-        """Alias de crear_nuevo_archivo para conservar el nombre del UML."""
-        return self.crear_nuevo_archivo(nombre, contenido)
 
     def renombrar_archivo(self, id: int, nuevo_nombre: str) -> None:
         self.__validar_id(id)
@@ -267,45 +198,3 @@ class GestorArchivos:
     def eliminar_archivo(self, id: int) -> None:
         self.__validar_id(id)
         self.__carpeta_actual.eliminar_archivo(id)
-
-    def extraer_archivo(self, id: int) -> None:
-        """Corta un archivo directo y lo guarda en el portapapeles."""
-        self.__validar_id(id)
-        if self.__carpeta_actual.buscar_archivo_por_id(id) is None:
-            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
-        self.__preparar_nueva_operacion_portapapeles()
-
-        self.__elemento_portapapeles = self.__carpeta_actual.extraer_archivo(id)
-        self.__operacion_portapapeles = self.CORTAR
-        self.__carpeta_origen = self.__carpeta_actual
-
-    def cortar_archivo(self, id: int) -> None:
-        self.extraer_archivo(id)
-
-    def copiar_archivo(self, id: int) -> None:
-        self.__validar_id(id)
-        if self.__carpeta_actual.buscar_archivo_por_id(id) is None:
-            raise ValueError(f"No se encontro ningun archivo con el ID {id}.")
-        self.__preparar_nueva_operacion_portapapeles()
-
-        self.__elemento_portapapeles = self.__carpeta_actual.clonar_archivo(
-            id, self.__siguiente_id
-        )
-        self.__siguiente_id += 1
-        self.__operacion_portapapeles = self.COPIAR
-        self.__carpeta_origen = self.__carpeta_actual
-
-    def pegar_archivo(self) -> None:
-        if not isinstance(self.__elemento_portapapeles, Archivo):
-            raise ValueError("El portapapeles no contiene un archivo.")
-
-        self.__carpeta_actual.pegar_archivo(self.__elemento_portapapeles)
-        self.__limpiar_portapapeles()
-
-    def pegar_elemento(self) -> None:
-        if isinstance(self.__elemento_portapapeles, Carpeta):
-            self.pegar_subcarpeta()
-        elif isinstance(self.__elemento_portapapeles, Archivo):
-            self.pegar_archivo()
-        else:
-            raise ValueError("No hay ningun elemento en el portapapeles.")

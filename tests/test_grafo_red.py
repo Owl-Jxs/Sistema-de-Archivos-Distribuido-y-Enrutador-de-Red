@@ -306,11 +306,14 @@ class AlgoritmosRedTests(unittest.TestCase):
         grafo.agregar_servidor(Servidor("unico", 8, self.ruta_base))
         self.assertEqual({}, grafo.ping_general("unico"))
 
-    def test_ping_y_ruta_reutilizan_una_ejecucion_de_dijkstra(self) -> None:
-        with patch.object(self.grafo, "dijkstra", wraps=self.grafo.dijkstra) as calculo:
+    def test_ping_usa_bfs_y_conserva_una_ejecucion_de_dijkstra(self) -> None:
+        with patch.object(self.grafo, "bfs", wraps=self.grafo.bfs) as recorrido, patch.object(
+            self.grafo, "dijkstra", wraps=self.grafo.dijkstra,
+        ) as calculo:
             self.assertEqual({"B": 3, "C": 2, "D": 7, "E": None},
                              self.grafo.ping_general(" A "))
             calculo.assert_called_once_with(" A ")
+            recorrido.assert_called_once_with(" A ")
         with patch.object(self.grafo, "dijkstra", wraps=self.grafo.dijkstra) as calculo:
             self.assertEqual((["A", "C", "B", "D"], 7),
                              self.grafo.ruta_mas_corta("A", "D"))
@@ -352,6 +355,73 @@ class AlgoritmosRedTests(unittest.TestCase):
                          self.grafo.ruta_mas_corta("A", "D"))
         self.assertEqual({"B": 3, "C": 2, "D": 7, "E": None},
                          self.grafo.ping_general("A"))
+
+    def test_ping_distingue_otro_componente_de_servidor_aislado(self) -> None:
+        self.grafo.agregar_servidor(Servidor("F", 6, self.ruta_base))
+        self.grafo.agregar_servidor(Servidor("G", 7, self.ruta_base))
+        self.grafo.agregar_conexion("E", "F", 5)
+        anteriores = len(self.grafo.consultar_auditoria())
+        self.assertEqual(
+            {"B": 3, "C": 2, "D": 7, "E": None, "F": None, "G": None},
+            self.grafo.ping_general("A"),
+        )
+        self.assertEqual(["G"], self.grafo.servidores_aislados())
+        registros = self.grafo.consultar_auditoria()[anteriores:]
+        self.assertEqual(["PING_GENERAL"], [r.accion for r in registros])
+        self.assertIn("Red fragmentada", registros[0].detalle)
+        self.assertIn("Servidores aislados: G", registros[0].detalle)
+
+    def test_autoconexion_no_deja_de_ser_aislado(self) -> None:
+        self.grafo.agregar_conexion("E", "E", 1)
+        self.assertTrue(self.grafo.buscar_vertice("E").esta_aislado())
+        self.assertEqual(["E"], self.grafo.servidores_aislados())
+        self.assertIsNone(self.grafo.ping_general("A")["E"])
+
+    def test_red_conectada_se_refleja_en_diagnostico(self) -> None:
+        self.grafo.agregar_conexion("D", "E", 4)
+        self.assertTrue(all(ms is not None for ms in self.grafo.ping_general("A").values()))
+        self.assertEqual([], self.grafo.servidores_aislados())
+        registro = self.grafo.consultar_auditoria()[-1]
+        self.assertIn("Todos los servidores estan comunicados", registro.detalle)
+        self.assertIn("Servidores aislados: ninguno", registro.detalle)
+
+    def test_latencia_simulada_bidireccional_se_guarda_y_no_se_regenera(self) -> None:
+        for latencia in (1, 100):
+            with self.subTest(latencia=latencia), patch(
+                "network_os.logic.controller.grafo_red.grafoRed.randint", return_value=latencia,
+            ) as simular:
+                self.assertIsNone(self.grafo.agregar_conexion("A", "E"))
+                simular.assert_called_once_with(1, 100)
+                a = self.grafo.buscar_vertice("A")
+                e = self.grafo.buscar_vertice("E")
+                self.assertEqual(latencia, a.buscar_conexion(e).latencia_ms)
+                self.assertEqual(latencia, e.buscar_conexion(a).latencia_ms)
+                self.assertIn(f"latencia: {latencia} ms", self.grafo.consultar_auditoria()[-1].detalle)
+                self.grafo.guardar()
+            with patch(
+                "network_os.logic.controller.grafo_red.grafoRed.randint",
+                side_effect=AssertionError("No debe simular al cargar"),
+            ):
+                self.grafo.cargar()
+            a = self.grafo.buscar_vertice("A")
+            e = self.grafo.buscar_vertice("E")
+            self.assertEqual(latencia, a.buscar_conexion(e).latencia_ms)
+            self.assertEqual(latencia, e.buscar_conexion(a).latencia_ms)
+            self.grafo.eliminar_conexion("A", "E")
+
+    def test_latencia_explicita_conserva_contrato_y_no_se_simula(self) -> None:
+        with patch("network_os.logic.controller.grafo_red.grafoRed.randint") as simular:
+            self.grafo.agregar_conexion("A", "E", 4.5)
+        simular.assert_not_called()
+        self.assertEqual(4.5, self.grafo.ruta_mas_corta("A", "E")[1])
+
+    def test_conexion_simulada_invalida_registra_un_solo_error(self) -> None:
+        anteriores = len(self.grafo.consultar_auditoria())
+        with self.assertRaises(ValueError):
+            self.grafo.agregar_conexion("A", "fantasma")
+        registros = self.grafo.consultar_auditoria()[anteriores:]
+        self.assertEqual(1, len(registros))
+        self.assertEqual(("AGREGAR_CONEXION", "ERROR"), (registros[0].accion, registros[0].resultado))
 
 
 if __name__ == "__main__":

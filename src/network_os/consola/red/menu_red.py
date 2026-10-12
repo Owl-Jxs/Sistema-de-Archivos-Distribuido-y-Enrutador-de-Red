@@ -53,6 +53,7 @@ class MenuRed:
                 elif opcion == "5":
                     origen = input("Servidor desde el que realizar el ping: ").strip()
                     resultados = self.__grafo.ping_general(origen)
+                    aislados = self.__grafo.servidores_aislados()
 
                     print(f"\n=== PING GENERAL DESDE {origen} ===")
                     if not resultados:
@@ -60,9 +61,19 @@ class MenuRed:
                     else:
                         for destino, latencia in resultados.items():
                             if latencia is None:
-                                print(f"{destino}: inalcanzable")
+                                estado = (
+                                    "servidor aislado" if destino in aislados
+                                    else "en otro componente de la red"
+                                )
+                                print(f"{destino}: inalcanzable ({estado})")
                             else:
                                 print(f"{destino}: {latencia} ms")
+
+                        if all(latencia is not None for latencia in resultados.values()):
+                            print("Todos los servidores estan comunicados.")
+                        else:
+                            print("Red fragmentada: no todos los servidores estan comunicados.")
+                    print(f"Servidores aislados: {', '.join(aislados) or 'ninguno'}.")
 
                 if opcion in ["1", "2", "3", "4", "5"]:
                     pausar()
@@ -173,15 +184,15 @@ class MenuRed:
         destino = input("Servidor de destino: ").strip()
 
         if opcion == "1":
-            latencia = float(input("Latencia en ms: ").strip())
-
-            self.__grafo.agregar_conexion(
-                origen, destino, latencia
-            )
+            self.__grafo.agregar_conexion(origen, destino)
             self.__grafo.guardar()
+            vertice_origen = self.__grafo.buscar_vertice(origen)
+            vertice_destino = self.__grafo.buscar_vertice(destino)
+            latencia = vertice_origen.buscar_conexion(vertice_destino).latencia_ms
 
             print(
-                f"Conexion entre '{origen}' y '{destino}' creada."
+                f"Conexion entre '{origen}' y '{destino}' creada. "
+                f"Latencia simulada: {latencia} ms."
             )
 
         elif opcion == "2":

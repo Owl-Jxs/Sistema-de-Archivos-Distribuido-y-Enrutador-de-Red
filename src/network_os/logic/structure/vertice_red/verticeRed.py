@@ -35,5 +35,8 @@ class VerticeRed:
         return actual.servidor.nombre == esperado.servidor.nombre
 
     def esta_aislado(self):
-        #devuelve true si el vertice no tiene conexiones
-        return len(self.conexiones) == 0
+        # Una conexion consigo mismo no lo comunica con el resto de la red.
+        return not any(
+            conexion.destino.servidor.nombre != self.servidor.nombre
+            for conexion in self.conexiones
+        )

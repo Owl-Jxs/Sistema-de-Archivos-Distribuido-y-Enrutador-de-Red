@@ -15,8 +15,10 @@ class NetworkOS:
         grafo = GrafoRed(auditoria=auditoria_red)
         try:
             grafo.cargar()
-        except FileNotFoundError:
-            print("Sin datos de red previos; se inicia una red vacia.")
+        except (OSError, ValueError) as error:
+            # Un CSV de red o de servidor corrupto no debe tumbar el arranque.
+            print(f"No se pudieron cargar los datos de red: {error}")
+            print("Se inicia una red vacia.")
 
         MenuConsola(grafo).ejecutar()
 

@@ -29,7 +29,7 @@ class ArchivoTests(unittest.TestCase):
 
 
 class ArchivosEnCarpetaTests(unittest.TestCase):
-    def test_agrega_busca_lista_renombra_y_extrae_archivos(self) -> None:
+    def test_agrega_busca_lista_renombra_y_elimina_archivos(self) -> None:
         carpeta = Carpeta(0, "raiz")
         archivo = Archivo(1, "notas.txt", "hola")
 
@@ -39,7 +39,7 @@ class ArchivosEnCarpetaTests(unittest.TestCase):
         self.assertEqual([archivo], carpeta.listar_archivos())
         self.assertIs(carpeta.buscar_archivo_por_nombre("tareas.txt"), archivo)
         self.assertIs(carpeta.buscar_archivo_por_id(archivo.id), archivo)
-        self.assertIs(carpeta.extraer_archivo(archivo.id), archivo)
+        self.assertIs(carpeta.eliminar_archivo(archivo.id), archivo)
         self.assertEqual([], carpeta.listar_archivos())
 
     def test_impide_nombres_repetidos_entre_archivos_y_carpetas(self) -> None:
@@ -65,69 +65,6 @@ class ArchivosEnGestorTests(unittest.TestCase):
         archivo = gestor.crear_nuevo_archivo("notas.txt")
 
         self.assertEqual((1, 2), (carpeta.id, archivo.id))
-
-    def test_corta_y_pega_archivo_entre_carpetas(self) -> None:
-        gestor = GestorArchivos("servidor")
-        origen = gestor.crear_nueva_subcarpeta("origen")
-        destino = gestor.crear_nueva_subcarpeta("destino")
-        gestor.bajar_a_subcarpeta("origen")
-        archivo = gestor.crear_nuevo_archivo("datos.txt", "contenido")
-
-        gestor.cortar_archivo(archivo.id)
-        gestor.volver_a_raiz()
-        gestor.bajar_a_subcarpeta("destino")
-        gestor.pegar_archivo()
-
-        self.assertEqual([], origen.listar_archivos())
-        self.assertEqual([archivo], destino.listar_archivos())
-
-    def test_copiar_archivo_asigna_id_y_contenido_independientes(self) -> None:
-        gestor = GestorArchivos("servidor")
-        destino = gestor.crear_nueva_subcarpeta("destino")
-        original = gestor.crear_nuevo_archivo("datos.txt", ["original"])
-
-        gestor.copiar_archivo(original.id)
-        gestor.bajar_a_subcarpeta("destino")
-        gestor.pegar_archivo()
-
-        copia = destino.buscar_archivo_por_nombre("datos.txt")
-        self.assertIsNotNone(copia)
-        assert copia is not None
-        self.assertEqual(3, copia.id)
-        copia.contenido.append("copia")
-        self.assertEqual(["original"], original.contenido)
-
-    def test_copiar_carpeta_incluye_sus_archivos(self) -> None:
-        gestor = GestorArchivos("servidor")
-        original = gestor.crear_nueva_subcarpeta("original")
-        destino = gestor.crear_nueva_subcarpeta("destino")
-        gestor.bajar_a_subcarpeta("original")
-        gestor.crear_nuevo_archivo("contenido.txt", "datos")
-        gestor.volver_a_raiz()
-
-        gestor.copiar_subcarpeta(original.id)
-        gestor.bajar_a_subcarpeta("destino")
-        gestor.pegar_subcarpeta()
-
-        copia = destino.buscar_subcarpeta_por_nombre("original")
-        self.assertIsNotNone(copia)
-        assert copia is not None
-        self.assertEqual(4, copia.id)
-        self.assertEqual(5, copia.listar_archivos()[0].id)
-        self.assertEqual("contenido.txt", copia.listar_archivos()[0].nombre)
-
-    def test_no_pega_un_archivo_con_el_metodo_de_subcarpetas(self) -> None:
-        gestor = GestorArchivos("servidor")
-        destino = gestor.crear_nueva_subcarpeta("destino")
-        archivo = gestor.crear_nuevo_archivo("datos.txt")
-        gestor.copiar_archivo(archivo.id)
-        gestor.bajar_a_subcarpeta("destino")
-
-        with self.assertRaises(ValueError):
-            gestor.pegar_subcarpeta()
-
-        gestor.pegar_archivo()
-        self.assertEqual(1, len(destino.listar_archivos()))
 
 
 if __name__ == "__main__":

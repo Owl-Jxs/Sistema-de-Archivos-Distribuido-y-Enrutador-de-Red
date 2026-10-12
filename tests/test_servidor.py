@@ -134,7 +134,27 @@ class ServidorTests(unittest.TestCase):
             servidor.volver_a_raiz()
             self.assertIs(servidor.obtener_carpeta_actual(), servidor.gestor_archivos.raiz)
 
-    def test_compartir_no_modifica_el_portapapeles_y_receptor_importa(self) -> None:
+    def test_rechaza_usuario_solo_numerico_que_romperia_la_recarga(self) -> None:
+        # El CSV serializa con json.dumps: una clave solo numerica volveria
+        # como int al cargar y dejaria de coincidir con el str autenticado.
+        with tempfile.TemporaryDirectory() as temporal:
+            servidor = Servidor("principal", 1, Path(temporal))
+
+            with self.assertRaises(ValueError):
+                servidor.agregar_usuario("1234567", "clave123")
+
+    def test_usuario_alfanumerico_sigue_autenticando_tras_recargar(self) -> None:
+        with tempfile.TemporaryDirectory() as temporal:
+            ruta_base = Path(temporal)
+            clave = "clave123"
+            Servidor("principal", 1, ruta_base).agregar_usuario("ana123", clave)
+
+            recargado = Servidor("principal", 1, ruta_base)
+
+            self.assertTrue(recargado.autenticar_usuario("ana123", clave))
+            self.assertFalse(recargado.autenticar_usuario("ana123", "malaClave1"))
+
+    def test_compartir_subcarpeta_no_altera_el_origen_y_receptor_importa(self) -> None:
         with tempfile.TemporaryDirectory() as temporal:
             ruta_base = Path(temporal)
             origen = Servidor("origen", 1, ruta_base)
@@ -147,15 +167,19 @@ class ServidorTests(unittest.TestCase):
             origen.gestor_archivos.crear_nuevo_archivo("datos.txt", ["dato"])
             origen.volver_a_raiz()
 
-            origen.cortar_subcarpeta(pendiente.id)
             paquete = origen.compartir_subcarpeta(compartida.id, destino.nombre)
-            origen.pegar_subcarpeta()
 
             self.assertEqual("SUBCARPETA", paquete.tipo)
             self.assertIsNot(paquete.contenido, compartida)
+            # Compartir solo exporta una copia: el origen queda intacto.
             self.assertIsNotNone(
                 origen.obtener_carpeta_actual().buscar_subcarpeta_por_nombre(
                     "pendiente"
+                )
+            )
+            self.assertIsNotNone(
+                origen.obtener_carpeta_actual().buscar_subcarpeta_por_nombre(
+                    "compartida"
                 )
             )
 
