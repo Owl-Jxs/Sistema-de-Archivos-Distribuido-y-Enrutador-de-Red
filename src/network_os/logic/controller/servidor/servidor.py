@@ -102,6 +102,12 @@ class Servidor:
             )
         if any(caracter.isspace() for caracter in nombre_limpio):
             raise ValueError("El nombre de usuario no puede contener espacios.")
+        # Sin al menos una letra, json.loads devuelve la clave como int al
+        # recargar el CSV y deja de coincidir con el str que se autentica.
+        if not any(caracter.isalpha() for caracter in nombre_limpio):
+            raise ValueError(
+                "El nombre de usuario debe contener al menos una letra."
+            )
         if not all(
             caracter.isalnum() or caracter in "._-"
             for caracter in nombre_limpio
@@ -246,24 +252,6 @@ class Servidor:
             lambda: self.__repositorio.eliminar_archivo(id),
         )
 
-    def cortar_archivo(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "CORTAR_ARCHIVO", f"Archivo ID {id}.",
-            lambda: self.__repositorio.cortar_archivo(id),
-        )
-
-    def copiar_archivo(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "COPIAR_ARCHIVO", f"Archivo ID {id}.",
-            lambda: self.__repositorio.copiar_archivo(id),
-        )
-
-    def pegar_archivo(self) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS", "PEGAR_ARCHIVO", "Archivo del portapapeles.",
-            self.__repositorio.pegar_archivo,
-        )
-
     def crear_subcarpeta(self, nombre: str) -> Carpeta:
         return self.ejecutar_accion(
             "ARCHIVOS",
@@ -304,30 +292,6 @@ class Servidor:
         self.ejecutar_accion(
             "ARCHIVOS", "VOLVER_A_RAIZ", "Navegacion a la raiz.",
             self.__repositorio.volver_a_raiz,
-        )
-
-    def cortar_subcarpeta(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "CORTAR_SUBCARPETA",
-            f"Subcarpeta con ID {id}.",
-            lambda: self.__repositorio.extraer_subcarpeta(id),
-        )
-
-    def copiar_subcarpeta(self, id: int) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "COPIAR_SUBCARPETA",
-            f"Subcarpeta con ID {id}.",
-            lambda: self.__repositorio.copiar_subcarpeta(id),
-        )
-
-    def pegar_subcarpeta(self) -> None:
-        self.ejecutar_accion(
-            "ARCHIVOS",
-            "PEGAR_SUBCARPETA",
-            "Contenido del portapapeles.",
-            self.__repositorio.pegar_subcarpeta,
         )
 
     def crear_paquete(self, destino: str, contenido: object) -> PaqueteDatos:
@@ -453,7 +417,7 @@ class Servidor:
     def cargar_estado(self) -> None:
         def operacion() -> None:
             self.__credenciales_usuarios = self.__servidor_csv.usuarios.cargar()
-            self.__repositorio.cargar()
+            self.__repositorio.cargar_servidor()
 
         self.ejecutar_accion(
             "PERSISTENCIA",
