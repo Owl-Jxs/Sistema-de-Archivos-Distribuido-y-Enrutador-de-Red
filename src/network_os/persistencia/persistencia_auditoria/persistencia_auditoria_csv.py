@@ -30,17 +30,9 @@ class PersistenciaAuditoriaCSV:
         necesita_encabezado = (
             not self.__ruta_csv.exists() or self.__ruta_csv.stat().st_size == 0
         )
-        campos = self.CAMPOS
-        if not necesita_encabezado:
-            with self.__ruta_csv.open("r", encoding="utf-8", newline="") as archivo:
-                encabezado = next(csv.reader(archivo))
-            if len(encabezado) == len(self.CAMPOS) and set(encabezado) == set(self.CAMPOS):
-                campos = encabezado
-            elif encabezado != list(self.CAMPOS[:-1]):
-                raise ValueError("El archivo CSV contiene un encabezado invalido.")
 
         with self.__ruta_csv.open("a", encoding="utf-8", newline="") as archivo:
-            escritor = csv.DictWriter(archivo, fieldnames=campos)
+            escritor = csv.DictWriter(archivo, fieldnames=self.CAMPOS)
             if necesita_encabezado:
                 escritor.writeheader()
             escritor.writerow(
@@ -60,15 +52,7 @@ class PersistenciaAuditoriaCSV:
 
         with self.__ruta_csv.open("r", encoding="utf-8", newline="") as archivo:
             lector = csv.DictReader(archivo)
-            registros = []
-            for fila in lector:
-                if "origen" not in fila:
-                    # El encabezado antiguo tiene cinco campos; append agrega
-                    # el origen al final sin reescribir los registros previos.
-                    adicionales = fila.pop(None, [])
-                    fila["origen"] = adicionales[0] if adicionales else "DESCONOCIDO"
-                registros.append(self.__reconstruir_registro(fila))
-            return registros
+            return [self.__reconstruir_registro(fila) for fila in lector]
 
     def consultar_ultimos(self, cantidad: int) -> list[RegistroAuditoria]:
         self.__validar_cantidad(cantidad)
