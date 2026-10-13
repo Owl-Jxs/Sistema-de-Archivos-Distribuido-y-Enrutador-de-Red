@@ -46,23 +46,6 @@ network-os/
 └── tests/                        ← pruebas unitarias
 ```
 
-## ▶️ Cómo ejecutar el programa (VS Code)
-
-1. Abrir la carpeta del proyecto en VS Code.
-2. Terminal integrada con <kbd>Ctrl</kbd> + <kbd>`</kbd> y:
-
-```bash
-python run.py
-```
-
-También funciona el botón ▶ de VS Code con `run.py` abierto.
-Alternativa sin launcher:
-
-```bash
-set PYTHONPATH=src && python -m network_os.main   # Windows cmd
-$env:PYTHONPATH="src"; python -m network_os.main  # PowerShell
-```
-
 ## Menús y envío de paquetes
 
 Los submenús usan bucles y la opción `0` vuelve al menú que los abrió. Las
@@ -133,7 +116,7 @@ python -m unittest discover -s tests
 
 ## Promps usados durante el desarrollo:
 
-## Isabella Cubillo Paniagua
+### Isabella Cubillo Paniagua
 
 1. Archivos y persistencia de carpetas:
 Ayúdame a revisar cómo implementar el guardado y la carga de carpetas para que la estructura de archivos pueda persistirse y recuperarse correctamente. Explícame cómo manejar los datos almacenados y cómo evitar problemas al reconstruir la estructura desde los archivos de persistencia.
@@ -161,7 +144,7 @@ Menú de auditoría:
 Ayúdame a estructurar un menú de auditoría que permita consultar los registros de operaciones del sistema. Considera opciones para visualizar los registros disponibles y los más recientes, utilizando las funciones de auditoría que ya existen en el proyecto.
 
 
-Bitácora Arleth Varela González
+### Bitácora Arleth Varela González
 Le pedí ayuda a la IA en varias ocasiones principalmente para poder implementar la lógica en Python ya que nunca había trabajado un proyecto en este lenguaje de programación y también para que me pudiera explicar definiciones que no conocía, en los archivos que realicé puse algunos comentarios de explicación.
 
 1. Estructura de HashMap
@@ -179,3 +162,37 @@ Me recomendó verificar si el usuario existe antes de registrarlo o eliminarlo.
 5. Aclaraciones sobre imports en Python
 Prompt: Explícame para qué sirve from getpass import getpass. 
 Me sirvió para comprender cómo se oculta una contraseña durante su captura. También me ayudó a implementar un getpass para que la contraseña no se muestre al escribirla.
+
+
+
+### Bitacora de Daniel
+
+ El uso que le di a la AI Tuvo distintos enfoques:
+  - Crear Tests de las partes del sistema para validar un correcto funcionamiento del mismo.
+  - A partir de estos tests o de prompts especificos,  se buscaban posibles errores, de encontrarlos se clasificaban en dos tipos (Si era logica o sintaxis el mismo aagente se encargaba de corregirlo y  me informaba posteriorimente, en el caso de errores de diseno o estructura del proyecto el azgente se   encargaba de informarmelo para ser yo el que tome la decision de que debia de hacer para corregirlo).
+  - Automatizar creacion de codigo repetitivo o ya con conocimientos sobre el mismo para agilizar el progreso del proyecto.
+  - Implenentar codigo correcto en python, ya que no conocia el lenguaje pero si tenia claro lo que debia lograr
+
+
+#### Partes em el proyecto de AI:
+1. Pruebas del sistema
+Utilicé la IA para crear y actualizar pruebas en la carpeta tests conforme avanzaban las funcionalidades del proyecto. Estas verificaban casos normales, entradas inválidas y situaciones como servidores desconectados o carpetas anidadas.
+No hay como tal un prompt que ejecute esto. Los prompts estaban estaban en las solicitudes de implementación, por ejemplo: “Ejecuta las pruebas existentes y comprueba los casos indicados”.
+
+2. Auditoría de servidores y red
+Me di cuenta que las auditorias estaban mal disenadadss y dejaban fuera procesos de la red, despues de esto analice como se debian redisenar y Solicité adaptar la auditoría para registrar las operaciones del grafo. Para posteriormente separar los registros de cada servidor de los movimientos de la red.
+Prompt utilizado: “En auditoria en este momento el diseno contempla solo los procesos de todos los servidores en una sola dentro de la red, pero cada servidor debe manejar su auditoria y la red una propia. Haz una clase genérica Auditoria, con instancias y archivos independientes para cada servidor y para la red.
+este cambia en el código para que la descentralice y que ahora cada servidor tenga su auditoría y en el grafo haya una auditoría aparte”.
+
+3. Organización de los menús de consola
+Utilicé la IA para revisar los menús y organizarlos en clases y carpetas según su responsabilidad, tomando el UML como referencia.
+Prompt utilizado: “Necesito que revises lo que ya está y corrijas errores de logica y  sintaxis dentro de las clases que funcionan como las interfaces de consola, además separa la estructura actual en diferentes clases respetando las funciones dentro de ellas como están ahora, esto para dejar una clase de vista para cada parte (la red, el servidor y el gestor de archivos)”.
+
+4. Envío de paquetes
+Solicité completar la integración de envío que había quedado comentada en el menú del servidor mientras esperaba que una companera terminara  metodos faltantes para esta funcionalidada
+Prompt utilizado: “Revisa el flujo que hay para enviar un paquete entre servidores, empezando por el menu del servidor. Revisa todo el flujo buscando errores o partes faltantes o mal conectadas, de haberlas completa las partes faltantes ”.
+Nota: La IA ayudó a conectar PaqueteDatos, el enrutamiento de GrafoRed, la recepción en Servidor y ResultadoEnvio. Se mantuvieron las estructuras existentes y se verificó que la entrega se confirmara después de guardar el contenido en el destino.
+
+5. Diagnóstico de red y latencias simuladas
+Después de comparar el proyecto con el enunciado, solicité ajustar el Ping General y generar automáticamente las latencias de las conexiones.
+Prompt utilizado: “Revisa el Ping General y ajústalo para utilizar BFS, indicando si todos los servidores están comunicados y distinguiendo los servidores aislados de los componentes desconectados. Además, al crear una conexión, genera una latencia aleatoria dentro de un rango razonable sin pedir los milisegundos al usuario'
