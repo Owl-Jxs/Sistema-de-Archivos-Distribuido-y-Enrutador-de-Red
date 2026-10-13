@@ -160,3 +160,22 @@ Ayúdame a organizar el menú de administración de la red para que el usuario p
 Menú de auditoría:
 Ayúdame a estructurar un menú de auditoría que permita consultar los registros de operaciones del sistema. Considera opciones para visualizar los registros disponibles y los más recientes, utilizando las funciones de auditoría que ya existen en el proyecto.
 
+
+Bitácora Arleth Varela González
+Le pedí ayuda a la IA en varias ocasiones principalmente para poder implementar la lógica en Python ya que nunca había trabajado un proyecto en este lenguaje de programación y también para que me pudiera explicar definiciones que no conocía, en los archivos que realicé puse algunos comentarios de explicación.
+
+1. Estructura de HashMap
+Prompt: Ayúdame a implementar la tabla hash en el archivo hashMap con base en el UML. 
+Para obtener una propuesta de tabla hash y cómo podría hacer para las operaciones de insertar, buscar y eliminar elementos.
+
+2. Persistencia de usuarios
+Prompt: Podrías decirme cómo puedo implementar la persistencia de los usuarios donde guarde los usuarios y pueda cargarlos en un HashMap.
+Sirvió para proponer cómo conservar los usuarios en un archivo CSV y reconstruir la tabla hash al cargar los datos. Se aclaró que los objetos guardados como datos JSON pueden recuperarse como diccionarios.
+
+3. Menú del servidor y usuarios locales
+Prompt: Ayúdame a implementar la lógica para el menú del servidor y del submenú de usuarios locales, para poder definir opciones de navegación para administrar archivos, usuarios y envío de paquetes. 
+Me recomendó verificar si el usuario existe antes de registrarlo o eliminarlo.
+
+5. Aclaraciones sobre imports en Python
+Prompt: Explícame para qué sirve from getpass import getpass. 
+Me sirvió para comprender cómo se oculta una contraseña durante su captura. También me ayudó a implementar un getpass para que la contraseña no se muestre al escribirla.
