@@ -196,3 +196,98 @@ Nota: La IA ayudó a conectar PaqueteDatos, el enrutamiento de GrafoRed, la rece
 5. Diagnóstico de red y latencias simuladas
 Después de comparar el proyecto con el enunciado, solicité ajustar el Ping General y generar automáticamente las latencias de las conexiones.
 Prompt utilizado: “Revisa el Ping General y ajústalo para utilizar BFS, indicando si todos los servidores están comunicados y distinguiendo los servidores aislados de los componentes desconectados. Además, al crear una conexión, genera una latencia aleatoria dentro de un rango razonable sin pedir los milisegundos al usuario'
+
+### Bitácora Erving Sequeira
+
+## 1. Definición de Arquitectura y Estructura Inicial
+> **Modelo utilizado:** Claude Sonnet 5.5
+
+* **Prompt:**  
+  > "Estoy empezando este proyecto en Python de NetworkOS, necesito saber cuál sería una buena arquitectura y estructura para las carpetas, aparte necesito un `.gitignore` bien hecho y quiero que el `README` resuma lo que decía el enunciado, para guiar al grupo."
+
+* **Respuesta de la IA:**  
+  Propuso una estructura `src/network_os/` con carpetas por tema (`arbol`, `auditoria`, `grafo`, `hash_table`), `test/` en la raíz, un `.gitignore` para Python y un borrador del `README`.
+
+* **Adaptación en NetworkOS:**  
+  Ajustamos la propuesta para aplicar un patrón **MVC**:
+  * Inicialmente establecimos las carpetas `logic/` (con `controller`, `model` y `estructure`) y `persistencia/`.
+  * La carpeta `consola/` apareció a la par de estas cuando se implementaron los menús de interacción.
+  * La carpeta `test/` se mantuvo en la raíz al nivel de `src/`.
+
+---
+
+## 2. Diseño del Módulo de Auditoría y Trazabilidad Global
+> **Modelo utilizado:** Claude Sonnet 5.5
+
+* **Prompt:**  
+  > "Estoy por trabajar en el módulo de auditoría, la idea sería el registro de cada servidor para anotar su fecha y hora, categoría, acción, resultado, detalle, como dividirlo bien para la base."
+
+* **Respuesta de la IA:**  
+  Propuso crear una clase `RegistroAuditoria` como estructura inmutable (`frozen`) para evitar alteraciones, un gestor `PersistenciaAuditoria` para manejar archivos CSV por cada servidor, y una fachada llamada `AuditoriaServidor` conectada al futuro modelo de `Servidor`. Además, generó automáticamente la estructura inicial para `test_auditoria`.
+
+* **Adaptación en NetworkOS:**  
+  Ampliamos el alcance inicial al darnos cuenta de que la red poseía un **GrafoRed** completo que también requería trazabilidad:
+  * Renombramos `AuditoriaServidor` a simplemente `Auditoria` para soportar tanto eventos individuales de servidores como eventos globales de red (reconstrucción, adición/eliminación de nodos, guardado de red).
+  * Añadimos un sexto campo para registrar explícitamente el origen del evento (servidor o red).
+  * Modificamos la estrategia de persistencia: además de los registros por servidor, incorporamos un archivo global `network_audit_log.txt` para centralizar la auditoría de toda la red.
+
+---
+
+## 3. Implementación Base del Grafo de Red y Persistencia CSV
+> **Modelo utilizado:** Claude Sonnet 5.5
+
+* **Prompt:**  
+  > "Estoy listo para continuar con el GrafoRed que ya teníamos previsto para auditoría, aunque solo dejaré el mínimo para que mis compañeros creen la lógica, guardar y cargar, ya mi compañera creó el vértice red entonces ayúdame a crear la lógica de esto, junto a una PersistenciaRedCSV que me de la red de conexiones para ver el tipo, nombre, id, direccion base, origen, destino y latencia_ms."
+
+* **Respuesta de la IA:**  
+  Generó una estructura base aprovechando el vértice de red previamente creado por el equipo, implementando la lógica inicial del grafo junto con un módulo `PersistenciaRedCSV` capaz de serializar y deserializar las conexiones contemplando sus atributos (tipo, nombre, id, dirección base, origen, destino y latencia en ms).
+
+* **Adaptación en NetworkOS:**  
+  Como equipo validamos que esta propuesta cumplía perfectamente con el objetivo de servir como cimiento sólido y estandarizado, permitiendo que el resto de compañeros se integraran fácilmente a desarrollar las funcionalidades avanzadas y lógicas restantes sobre el grafo.
+
+---
+
+## 4. Refactorización Integral, Corrección de Bugs y Robustez (Modo Plan/Build)
+> **Modelo utilizado:** OpenCode Mimo 2.6
+
+* **Prompt (Agente de código):**  
+  > "Quiero que busques errores en el código, primero vamos en modo plan para luego pasar a build, te digo como tal las cosas que quiero arreglar de una vez: las contraseñas con tilde no son lo mismo al autenticar, como 'mónica' y 'monica'; quiero que el guardar en CSV tenga escritura atómica (archivo temporal y reemplazar solo si salió bien) junto a rollback por si el guardado falla y deshace en memoria; el grafo hay que arreglarlo ya que las conexiones no son bidireccionales, solo de A -> B; para el árbol necesitamos la búsqueda recursiva y poder imprimirlo con indentación; aparte estoy dependiendo de usar tzdata para zona horaria."
+
+* **Respuesta de la IA (Agente de código):**  
+  * Encontró un bug crítico en la tabla hash (degradación a $O(n)$ por mezcla de bits ausente en strings) y propuso un mixer universal.
+  * Solucionó la autenticación con tildes mediante comparación segura en UTF-8 con `hmac.compare_digest`.
+  * Diseñó la escritura atómica en CSV con rollback en memoria y corrigió el grafo (conexiones bidireccionales, borrado, validación de latencias con `math.isfinite` para Dijkstra).
+  * Añadió búsqueda recursiva e impresión con indentación en el árbol, configuró `pyproject.toml` para pruebas sin `PYTHONPATH`, y reemplazó `tzdata` por zona horaria nativa UTC-6 (Costa Rica).
+
+* **Adaptación en NetworkOS:**  
+  * Validamos e integramos todas las correcciones, elevando drásticamente la robustez y seguridad del sistema reflejada en la estructura de clases final.
+
+---
+
+## 5. Estructuración y Modularización de la Consola
+> **Modelo utilizado:** Claude Sonnet 5.5
+
+* **Prompt:**  
+  > "Esta vez me toca que el proyecto se pueda ejecutar ya, quiero que me ayudes a decidir la estructura para el menu_consola, decidí crear la carpeta consola/ ya y dentro menu_consola, de momento quedara monolítico ya que quiero dejar más o menos varios docstrings por menú y que los menús de momento devuelvan un print que diga que esto falta, pero dejar hecho el iniciar sesión, pedimos un servidor pero si no hay pues toca meter un método en Servidor para saber si no hay usuarios y así pedir uno al inicio, bueno, para cuando haya servers creados por los otros menú."
+
+* **Respuesta de la IA:**  
+  * Propuso un menú monolítico base con opciones de red, servidor y auditoría, utilidades de entrada (`leer_opcion`, `pausar`), validación de usuarios vacíos (`usuarios_vacios`) y un archivo raíz `run.py` para depuración en VS Code.
+
+* **Adaptación en NetworkOS:**  
+  * El equipo evolucionó este planteamiento inicial dividiendo la interfaz en clases separadas organizadas en subdirectorios especializados (`consola/principal/`, `consola/red/` y `consola/servidor/`) para mantener la cohesión modular que se aprecia en el diagrama final.
+
+---
+
+## 6. Limpieza de Código Muerto, Parcheo de Auditoría y Manejo de Excepciones
+> **Modelo utilizado:** OpenCode Mimo 2.6
+
+* **Prompt (Agente de código):**  
+  > "Sabes hay una lógica de portapapeles, cortar, copiar y pegar que ningún menú usa pero estaba planeada por mi compañero por si hacíamos interfaz gráfica me dijo, esto quedó como consola y es código y test que pues realmente no se usa, corta eso como tal ya de por si cumplimos con el enunciado sin ese añadido, pasa en persistencia auditoria csv que si el archivo era viejo, podía ser por haberlo probado antes y que quedaran registros de header 5 pues al escribir se pega un sexto valor DESCONOCIDO al final de cada fila nueva, entonces que eso ya no inspeccione el header y no separe el campo faltante, saca esos test pero no toques CAMPOS, busca si encuentras algo que necesite atención."
+
+* **Respuesta de la IA (Agente de código):**  
+  * Validó que los nombres de usuario exijan al menos una letra para evitar que nombres puramente numéricos rompieran la autenticación.
+  * Eliminó 316 líneas de código muerto y tests asociados al portapapeles no utilizado.
+  * Simplificó `persistencia_auditoria_csv.py` trabajando con campos estables sin inspección dinámica de encabezados obsoletos.
+
+* **Adaptación en NetworkOS:**  
+  * Implementamos manejo manual de excepciones en consola (`except FileNotFoundError:`) para inicializar una red vacía si el archivo CSV no existe o está corrupto, asegurando un arranque limpio y tolerante a fallos.
